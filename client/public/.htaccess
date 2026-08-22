@@ -1,0 +1,28 @@
+# GyaanSetu SPA — Apache configuration for Hostinger (public_html)
+# Enables clean client-side routing (deep links like /login, /student/dashboard)
+# and prevents the PWA service worker from being cached aggressively.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Skip rewrite for real files and directories (assets, sw.js, manifest, etc.)
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Serve index.html for all other (SPA) routes
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+# Do not cache the service worker and entry HTML
+<Files "sw.js">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+</Files>
+<Files "index.html">
+  Header set Cache-Control "no-cache, no-store, must-revalidate"
+</Files>
+
+# Correct MIME types for PWA assets
+AddType application/manifest+json .webmanifest
+AddType image/svg+xml .svg

@@ -1,0 +1,35 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+
+# Build outputs
+client/dist
+server/dist
+
+# Uploaded files & local database data
+server/uploads
+server/.data
+server/drizzle/*.json
+/uploads
+/.data
+drizzle/*.json
+
+# Local dev artifacts
+actid.txt
+boot.err
+boot.log
+stoken.txt
+token.txt
+generate-icons.cjs
+
+# Logs
+npm-debug.log*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
