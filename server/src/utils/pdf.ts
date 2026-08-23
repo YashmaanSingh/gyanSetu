@@ -41,8 +41,8 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
 
 export async function generateChapterPdf(input: ChapterPdfInput): Promise<Buffer> {
   const pdf = await PDFDocument.create();
-  const regularFontBytes = fs.readFileSync(path.join(__dirname, "../fonts/NotoSansDevanagari-Regular.ttf"));
-  const boldFontBytes = fs.readFileSync(path.join(__dirname, "../fonts/NotoSansDevanagari-Bold.ttf"));
+  const regularFontBytes = fs.readFileSync(path.join(__dirname, "../../fonts/NotoSansDevanagari-Regular.ttf"));
+  const boldFontBytes = fs.readFileSync(path.join(__dirname, "../../fonts/NotoSansDevanagari-Bold.ttf"));
   const font = await pdf.embedFont(regularFontBytes);
   const bold = await pdf.embedFont(boldFontBytes);
 
