@@ -13,6 +13,8 @@ export interface CurriculumChapter {
 export interface CurriculumSubject {
   name: string;
   slug: string;
+  stream?: string;
+  category?: string;
   chapters: CurriculumChapter[];
 }
 export interface CurriculumClass {
@@ -754,7 +756,7 @@ export const CURRICULUM: CurriculumClass[] = [
     name: "Class 11",
     slug: "class-11",
     subjects: [
-      S("English Core", "english-core", [
+      S("English Core", "english-core", "Humanities", "Language",
         ["The Portrait of a Lady", 1],
         ["We're Not Afraid to Die", 2],
         ["Discovering Tut: The Saga Continues", 3],
@@ -763,8 +765,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["The Browning Version", 6],
         ["The Adventure", 7],
         ["Silk Road", 8],
-      ]),
-      S("Mathematics", "mathematics", [
+      ),
+      S("Mathematics", "mathematics", "Science", "Elective",
         ["Sets", 1],
         ["Relations and Functions", 2],
         ["Trigonometric Functions", 3],
@@ -781,8 +783,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Mathematical Reasoning", 14],
         ["Statistics", 15],
         ["Probability", 16],
-      ]),
-      S("Physics", "physics", [
+      ),
+      S("Physics", "physics", "Science", "Core",
         ["Physical World", 1],
         ["Units and Measurements", 2],
         ["Motion in a Straight Line", 3],
@@ -798,8 +800,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Kinetic Theory", 13],
         ["Oscillations", 14],
         ["Waves", 15],
-      ]),
-      S("Chemistry", "chemistry", [
+      ),
+      S("Chemistry", "chemistry", "Science", "Core",
         ["Some Basic Concepts of Chemistry", 1],
         ["Structure of Atom", 2],
         ["Classification of Elements and Periodicity", 3],
@@ -814,8 +816,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Organic Chemistry — Basic Principles", 12],
         ["Hydrocarbons", 13],
         ["Environmental Chemistry", 14],
-      ]),
-      S("Biology", "biology", [
+      ),
+      S("Biology", "biology", "Science", "Elective",
         ["The Living World", 1],
         ["Biological Classification", 2],
         ["Plant Kingdom", 3],
@@ -831,8 +833,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Photosynthesis", 13],
         ["Respiration in Plants", 14],
         ["Plant Growth and Development", 15],
-      ]),
-      S("Computer Science", "computer-science", [
+      ),
+      S("Computer Science", "computer-science", "Skill", "Elective",
         ["Computer Systems", 1],
         ["Encoding Schemes and Number System", 2],
         ["Emerging Trends", 3],
@@ -843,8 +845,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Lists, Tuples and Dictionaries", 8],
         ["Flow of Control", 9],
         ["Strings", 10],
-      ]),
-      S("Accountancy", "accountancy", [
+      ),
+      S("Accountancy", "accountancy", "Commerce", "Additional",
         ["Introduction to Accounting", 1],
         ["Theory Base of Accounting", 2],
         ["Recording of Transactions", 3],
@@ -853,8 +855,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Depreciation", 6],
         ["Financial Statements", 7],
         ["Accounts from Incomplete Records", 8],
-      ]),
-      S("Business Studies", "business-studies", [
+      ),
+      S("Business Studies", "business-studies", "Commerce", "Core",
         ["Nature and Purpose of Business", 1],
         ["Forms of Business Organisation", 2],
         ["Private, Public and Global Enterprises", 3],
@@ -863,8 +865,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Social Responsibilities of Business", 6],
         ["Formation of a Company", 7],
         ["Sources of Business Finance", 8],
-      ]),
-      S("Economics", "economics", [
+      ),
+      S("Economics", "economics", "Commerce", "Core",
         ["Indian Economy on the Eve of Independence", 1],
         ["Indian Economy (1950–1990)", 2],
         ["Liberalisation, Privatisation and Globalisation", 3],
@@ -875,8 +877,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Infrastructure", 8],
         ["Environment and Sustainable Development", 9],
         ["Comparative Development", 10],
-      ]),
-      S("Political Science", "political-science", [
+      ),
+      S("Political Science", "political-science", "Humanities", "Additional",
         ["Constitution: Why and How?", 1],
         ["Rights in the Indian Constitution", 2],
         ["Election and Representation", 3],
@@ -885,8 +887,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Judiciary", 6],
         ["Federalism", 7],
         ["Local Governments", 8],
-      ]),
-      S("History", "history", [
+      ),
+      S("History", "history", "Humanities", "Additional",
         ["From the Beginning of Time", 1],
         ["Writing and City Life", 2],
         ["An Empire Across Three Continents", 3],
@@ -895,8 +897,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["The Three Orders", 6],
         ["Changing Cultural Traditions", 7],
         ["Confrontation of Cultures", 8],
-      ]),
-      S("Geography", "geography", [
+      ),
+      S("Geography", "geography", "Humanities", "Elective",
         ["Geography as a Discipline", 1],
         ["The Origin and Evolution of the Earth", 2],
         ["Interior of the Earth", 3],
@@ -905,21 +907,21 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Geomorphic Processes", 6],
         ["Landforms and their Evolution", 7],
         ["Composition and Structure of Atmosphere", 8],
-      ]),
-      S("Sanskrit", "sanskrit", [
+      ),
+      S("Sanskrit", "sanskrit", "Skill", "Skill",
         ["स्वर्णकाकः", 1],
         ["सुधामन्थनम्", 2],
         ["व्यायोगः", 3],
         ["हितोपदेशः", 4],
         ["भारती वसन्तगाथा", 5],
-      ]),
+      ),
     ],
   },
   {
     name: "Class 12",
     slug: "class-12",
-    subjects: [
-      S("English Core", "english-core", [
+subjects: [
+      S("English Core", "english-core", "Humanities", "Language",
         ["The Last Lesson", 1],
         ["Lost Spring", 2],
         ["Deep Water", 3],
@@ -928,8 +930,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Poets and Pancakes", 6],
         ["The Interview", 7],
         ["Going Places", 8],
-      ]),
-      S("Mathematics", "mathematics", [
+      ),
+      S("Mathematics", "mathematics", "Science", "Elective",
         ["Relations and Functions", 1],
         ["Inverse Trigonometric Functions", 2],
         ["Matrices", 3],
@@ -943,8 +945,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Three Dimensional Geometry", 11],
         ["Linear Programming", 12],
         ["Probability", 13],
-      ]),
-      S("Physics", "physics", [
+      ),
+      S("Physics", "physics", "Science", "Core",
         ["Electric Charges and Fields", 1],
         ["Electrostatic Potential and Capacitance", 2],
         ["Current Electricity", 3],
@@ -960,8 +962,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Nuclei", 13],
         ["Semiconductor Electronics", 14],
         ["Communication Systems", 15],
-      ]),
-      S("Chemistry", "chemistry", [
+      ),
+      S("Chemistry", "chemistry", "Science", "Core",
         ["The Solid State", 1],
         ["Solutions", 2],
         ["Electrochemistry", 3],
@@ -978,8 +980,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Biomolecules", 14],
         ["Polymers", 15],
         ["Chemistry in Everyday Life", 16],
-      ]),
-      S("Biology", "biology", [
+      ),
+      S("Biology", "biology", "Science", "Elective",
         ["Reproduction in Organisms", 1],
         ["Sexual Reproduction in Flowering Plants", 2],
         ["Human Reproduction", 3],
@@ -996,8 +998,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Ecosystem", 14],
         ["Biodiversity and Conservation", 15],
         ["Environmental Issues", 16],
-      ]),
-      S("Computer Science", "computer-science", [
+      ),
+      S("Computer Science", "computer-science", "Skill", "Elective",
         ["Exception Handling", 1],
         ["File Handling", 2],
         ["Stacks and Queues", 3],
@@ -1006,8 +1008,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Structured Query Language", 6],
         ["Interface Python with SQL", 7],
         ["Data Visualization", 8],
-      ]),
-      S("Accountancy", "accountancy", [
+      ),
+      S("Accountancy", "accountancy", "Commerce", "Additional",
         ["Accounting for Not-for-Profit Organisation", 1],
         ["Accounting for Partnership", 2],
         ["Reconstitution of Partnership", 3],
@@ -1016,8 +1018,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Issue and Redemption of Debentures", 6],
         ["Financial Statements of a Company", 7],
         ["Analysis of Financial Statements", 8],
-      ]),
-      S("Business Studies", "business-studies", [
+      ),
+      S("Business Studies", "business-studies", "Commerce", "Core",
         ["Nature and Significance of Management", 1],
         ["Principles of Management", 2],
         ["Business Environment", 3],
@@ -1028,8 +1030,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Controlling", 8],
         ["Financial Management", 9],
         ["Financial Markets", 10],
-      ]),
-      S("Economics", "economics", [
+      ),
+      S("Economics", "economics", "Commerce", "Core",
         ["Introduction to Macroeconomics", 1],
         ["National Income Accounting", 2],
         ["Money and Banking", 3],
@@ -1042,8 +1044,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Rural Development", 10],
         ["Employment and Infrastructure", 11],
         ["Sustainable Economic Development", 12],
-      ]),
-      S("Political Science", "political-science", [
+      ),
+      S("Political Science", "political-science", "Humanities", "Additional",
         ["The Cold War Era", 1],
         ["The End of Bipolarity", 2],
         ["US Hegemony in World Politics", 3],
@@ -1052,8 +1054,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["International Organisations", 6],
         ["Security in the Contemporary World", 7],
         ["Environment and Natural Resources", 8],
-      ]),
-      S("History", "history", [
+      ),
+      S("History", "history", "Humanities", "Additional",
         ["The Story of the First Cities", 1],
         ["Kings and Chronicles", 2],
         ["Colonialism and the Countryside", 3],
@@ -1062,8 +1064,8 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Mahatma Gandhi and the Nationalist Movement", 6],
         ["Understanding Partition", 7],
         ["Framing the Constitution", 8],
-      ]),
-      S("Geography", "geography", [
+      ),
+      S("Geography", "geography", "Humanities", "Elective",
         ["Human Geography", 1],
         ["The World Population", 2],
         ["Population Composition", 3],
@@ -1074,14 +1076,14 @@ export const CURRICULUM: CurriculumClass[] = [
         ["Transport and Communication", 8],
         ["International Trade", 9],
         ["Geographical Perspective on Selected Issues", 10],
-      ]),
-      S("Sanskrit", "sanskrit", [
+      ),
+      S("Sanskrit", "sanskrit", "Skill", "Skill",
         ["सुधामन्थनम्", 1],
         ["भारती वसन्तगाथा", 2],
         ["श्रीहर्ष", 3],
         ["व्यायोगः", 4],
         ["मेघदूतम्", 5],
-      ]),
+      ),
     ],
   },
 ];

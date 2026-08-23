@@ -17,6 +17,10 @@ export const materialStatusEnum = pgEnum("material_status", [
   "published",
   "archived",
 ]);
+export const materialVideoSourceEnum = pgEnum("material_video_source", [
+  "upload",
+  "url",
+]);
 export const activityTypeEnum = pgEnum("activity_type", [
   "mcq",
   "quiz",
@@ -43,7 +47,6 @@ export const fileKindEnum = pgEnum("file_kind", [
 ]);
 export const classStatusEnum = pgEnum("class_status", ["active", "inactive", "archived"]);
 export const chapterStatusEnum = pgEnum("chapter_status", ["draft", "published", "archived"]);
-
 export const dailyTaskTypeEnum = pgEnum("daily_task_type", [
   "mcq",
   "truefalse",
@@ -60,4 +63,12 @@ export const dailySubmissionStatusEnum = pgEnum("daily_submission_status", [
   "submitted",
   "pending_review",
   "evaluated",
+]);
+export const streamEnum = pgEnum("stream", ["Science", "Commerce", "Humanities"]);
+export const subjectCategoryEnum = pgEnum("subject_category", [
+  "Language",
+  "Core",
+  "Elective",
+  "Additional",
+  "Skill",
 ]);
