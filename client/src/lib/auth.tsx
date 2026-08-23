@@ -16,6 +16,7 @@ export interface AuthUser {
   avatarFileId: string | null;
   phone?: string;
   studentCode?: string;
+  className?: string | null;
   courseId?: string | null;
   courseName?: string | null;
   batch?: string | null;

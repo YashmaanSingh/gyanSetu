@@ -291,3 +291,71 @@ export const passwordResets = pgTable("password_resets", {
   usedAt: timestamp("used_at", { mode: "date" }),
   createdAt: timestamp("created_at", { mode: "date" }).notNull().defaultNow(),
 });
+
+// ===== Curriculum / Learning content hierarchy =====
+// Class -> ClassSubject -> Subject -> Chapter -> ChapterContent / StudyMaterial (PDF via files)
+
+export const classes = pgTable("classes", {
+  id: id(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  orderIndex: integer("order_index").notNull().default(0),
+  description: text("description"),
+  status: E.classStatusEnum("status").notNull().default("active"),
+  createdAt: ts.createdAt,
+  updatedAt: ts.updatedAt,
+});
+
+export const classSubjects = pgTable(
+  "class_subjects",
+  {
+    id: id(),
+    classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id").notNull().references(() => subjects.id, { onDelete: "cascade" }),
+    orderIndex: integer("order_index").notNull().default(0),
+    createdAt: ts.createdAt,
+  },
+  (t) => ({ uniq: uniqueIndex("uq_class_subject").on(t.classId, t.subjectId) })
+);
+
+export const chapters = pgTable("chapters", {
+  id: id(),
+  classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  subjectId: uuid("subject_id").notNull().references(() => subjects.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  chapterNo: integer("chapter_no").notNull().default(1),
+  summary: text("summary"),
+  status: E.chapterStatusEnum("status").notNull().default("draft"),
+  orderIndex: integer("order_index").notNull().default(0),
+  createdAt: ts.createdAt,
+  updatedAt: ts.updatedAt,
+});
+
+export const chapterContent = pgTable("chapter_content", {
+  id: id(),
+  chapterId: uuid("chapter_id").notNull().references(() => chapters.id, { onDelete: "cascade" }),
+  intro: text("intro"),
+  objectives: jsonb("objectives").$type<string[]>().default([]),
+  keyPoints: jsonb("key_points").$type<string[]>().default([]),
+  definitions: jsonb("definitions").$type<{ term: string; definition: string }[]>().default([]),
+  examples: jsonb("examples").$type<{ question: string; solution: string }[]>().default([]),
+  practiceQuestions: jsonb("practice_questions").$type<{ q: string; a: string }[]>().default([]),
+  revision: text("revision"),
+  body: text("body"),
+  createdAt: ts.createdAt,
+  updatedAt: ts.updatedAt,
+});
+
+export const studyMaterials = pgTable("study_materials", {
+  id: id(),
+  chapterId: uuid("chapter_id").notNull().references(() => chapters.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  fileId: uuid("file_id").references(() => files.id, { onDelete: "set null" }),
+  type: E.materialTypeEnum("type").notNull().default("pdf"),
+  downloadAllowed: boolean("download_allowed").notNull().default(true),
+  viewCount: integer("view_count").notNull().default(0),
+  status: E.materialStatusEnum("status").notNull().default("published"),
+  createdAt: ts.createdAt,
+  updatedAt: ts.updatedAt,
+});

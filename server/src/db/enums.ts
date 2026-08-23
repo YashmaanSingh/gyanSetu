@@ -41,3 +41,5 @@ export const fileKindEnum = pgEnum("file_kind", [
   "audio",
   "other",
 ]);
+export const classStatusEnum = pgEnum("class_status", ["active", "inactive", "archived"]);
+export const chapterStatusEnum = pgEnum("chapter_status", ["draft", "published", "archived"]);

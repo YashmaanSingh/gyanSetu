@@ -25,6 +25,7 @@ import StudentNotifications from "@/pages/student/NotificationsPage";
 import StudentProfile from "@/pages/student/ProfilePage";
 import StudentSearch from "@/pages/student/SearchPage";
 import StudentRegister from "@/pages/student/StudentRegisterPage";
+import StudentLibrary from "@/pages/student/LibraryPage";
 
 function RequireAuth({ role, children }: { role: "admin" | "student"; children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="progress" element={<StudentProgress />} />
         <Route path="notifications" element={<StudentNotifications />} />
         <Route path="search" element={<StudentSearch />} />
+        <Route path="library" element={<StudentLibrary />} />
         <Route path="profile" element={<StudentProfile />} />
       </Route>
 

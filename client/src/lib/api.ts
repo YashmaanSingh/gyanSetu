@@ -1,3 +1,11 @@
+import type {
+  ClassItem,
+  SubjectRef,
+  ChapterRef,
+  ChapterDetail,
+  MyClassResponse,
+} from "./types";
+
 export const API_URL = (import.meta.env.VITE_API_URL as string | undefined) || "/api";
 
 export interface ApiError extends Error {
@@ -80,6 +88,42 @@ export const api = {
   del: <T = any>(p: string) => apiFetch<T>(p, { method: "DELETE" }),
   upload: <T = any>(p: string, form: FormData) =>
     apiFetch<T>(p, { method: "POST", body: form }),
+};
+
+export const contentApi = {
+  listClasses: () => api.get<{ classes: ClassItem[] }>("/content/classes"),
+  listSubjects: () => api.get<{ subjects: { id: string; name: string; slug: string }[] }>("/content/subjects"),
+  getClassSubjects: (classId: string) =>
+    api.get<{ subjects: SubjectRef[] }>(`/content/classes/${classId}/subjects`),
+  getSubjectChapters: (classId: string, subjectId: string) =>
+    api.get<{ chapters: ChapterRef[] }>(
+      `/content/classes/${classId}/subjects/${subjectId}/chapters`,
+    ),
+  getChapter: (chapterId: string) =>
+    api.get<{ chapter: ChapterDetail }>(`/content/chapters/${chapterId}`),
+  getMyClass: () => api.get<MyClassResponse>("/content/my-class"),
+  search: (q: string, classId?: string, subjectId?: string) =>
+    api.get<{ results: any[] }>("/content/search", { q, classId, subjectId }),
+};
+
+export const adminContentApi = {
+  createClass: (body: any) => api.post("/content/classes", body),
+  updateClass: (id: string, body: any) => api.put(`/content/classes/${id}`, body),
+  archiveClass: (id: string) => api.del(`/content/classes/${id}`),
+  createSubject: (body: any) => api.post("/content/subjects", body),
+  updateSubject: (id: string, body: any) => api.put(`/content/subjects/${id}`, body),
+  deleteSubject: (id: string) => api.del(`/content/subjects/${id}`),
+  addClassSubject: (body: any) => api.post("/content/class-subjects", body),
+  removeClassSubject: (id: string) => api.del(`/content/class-subjects/${id}`),
+  createChapter: (body: any) => api.post("/content/chapters", body),
+  updateChapter: (id: string, body: any) => api.put(`/content/chapters/${id}`, body),
+  deleteChapter: (id: string) => api.del(`/content/chapters/${id}`),
+  upsertChapterContent: (id: string, body: any) => api.put(`/content/chapters/${id}/content`, body),
+  createMaterial: (id: string, form: FormData) =>
+    api.upload(`/content/chapters/${id}/materials`, form),
+  updateMaterial: (materialId: string, body: any) =>
+    api.put(`/content/materials/${materialId}`, body),
+  deleteMaterial: (materialId: string) => api.del(`/content/materials/${materialId}`),
 };
 
 function withQuery(path: string, q?: Record<string, any>) {

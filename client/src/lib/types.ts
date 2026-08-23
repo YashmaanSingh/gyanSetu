@@ -160,3 +160,64 @@ export interface PlatformSettings {
   notifications?: { notificationsEnabled: boolean };
   uploads?: { maxSizeMb: number; allowedExtensions: string };
 }
+
+// ===== Curriculum / Learning content =====
+export interface ClassItem {
+  id: string;
+  name: string;
+  slug: string;
+  orderIndex: number;
+  description?: string | null;
+  status: string;
+}
+
+export interface SubjectRef {
+  id: string;
+  name: string;
+  slug: string;
+  classSubjectId: string;
+  orderIndex: number;
+}
+
+export interface ChapterRef {
+  id: string;
+  classId: string;
+  subjectId: string;
+  title: string;
+  chapterNo: number;
+  summary?: string | null;
+  status: string;
+  orderIndex: number;
+}
+
+export interface ChapterMaterial {
+  id: string;
+  title: string;
+  description?: string | null;
+  type: string;
+  fileId?: string | null;
+  fileUrl?: string | null;
+  downloadAllowed: boolean;
+  status: string;
+}
+
+export interface ChapterContent {
+  intro?: string | null;
+  objectives?: string[];
+  keyPoints?: string[];
+  definitions?: { term: string; definition: string }[];
+  examples?: { question: string; solution: string }[];
+  practiceQuestions?: { q: string; a: string }[];
+  revision?: string | null;
+  body?: string | null;
+}
+
+export interface ChapterDetail extends ChapterRef {
+  content: ChapterContent | null;
+  studyMaterials: ChapterMaterial[];
+}
+
+export interface MyClassResponse {
+  class: ClassItem | null;
+  subjects: SubjectRef[];
+}

@@ -10,9 +10,16 @@ import {
   announcements,
   files,
   adminProfiles,
+  classes,
+  classSubjects,
+  chapters,
+  chapterContent,
+  studyMaterials,
 } from "../db/schema";
 import { hashPassword } from "../utils/password";
 import { fileStorage } from "../utils/storage";
+import { generateChapterPdf } from "../utils/pdf";
+import { CURRICULUM } from "./curriculum.data";
 import { eq, sql } from "drizzle-orm";
 
 const sampleText = (title: string) =>
@@ -234,6 +241,139 @@ async function seedSampleContent(db: any, adminId: string, courseId: string) {
   console.log("✓ Sample courses, materials, activities and announcements seeded.");
 }
 
+function slugify(s: string) {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+async function seedCurriculum(db: any) {
+  const [{ c }] = await db.select({ c: sql<number>`count(*)::int` }).from(classes);
+  if (Number(c) > 0) {
+    console.log("✓ Curriculum already exists — skipping curriculum seed.");
+    return;
+  }
+
+  let classIdx = 0;
+  let chapterCount = 0;
+  let pdfCount = 0;
+
+  for (const cls of CURRICULUM.classes) {
+    classIdx += 1;
+    const [classRow] = await db
+      .insert(classes)
+      .values({ name: cls.name, slug: slugify(cls.name), orderIndex: classIdx, description: cls.description || null })
+      .returning();
+
+    let subIdx = 0;
+    for (const subj of cls.subjects) {
+      subIdx += 1;
+      // Reuse subject by name (subjects are global across classes)
+      const lower = subj.name.toLowerCase();
+      let subjectRow = (
+        await db.select().from(subjects).where(sql`lower(${subjects.name}) = ${lower}`).limit(1)
+      )[0];
+      if (!subjectRow) {
+        [subjectRow] = await db
+          .insert(subjects)
+          .values({ name: subj.name, slug: slugify(subj.name) })
+          .returning();
+      }
+
+      await db
+        .insert(classSubjects)
+        .values({ classId: classRow.id, subjectId: subjectRow.id, orderIndex: subIdx })
+        .onConflictDoNothing();
+
+      let chIdx = 0;
+      for (const ch of subj.chapters) {
+        chIdx += 1;
+        const title = ch[0] as string;
+        const no = (ch[1] as number) || chIdx;
+        const intro = (ch[2] as string) || null;
+        const objectives = (ch[3] as string[]) || [];
+        const keyPoints = (ch[4] as string[]) || [];
+        const definitions = ((ch[5] as [string, string][]) || []).map((d) => ({ term: d[0], definition: d[1] }));
+        const examples = ((ch[6] as [string, string][]) || []).map((e) => ({ question: e[0], solution: e[1] }));
+        const practice = ((ch[7] as [string, string][]) || []).map((p) => ({ q: p[0], a: p[1] }));
+        const revision = (ch[8] as string) || null;
+
+        const [chapterRow] = await db
+          .insert(chapters)
+          .values({
+            classId: classRow.id,
+            subjectId: subjectRow.id,
+            title,
+            chapterNo: no,
+            summary: intro,
+            status: "published",
+            orderIndex: chIdx,
+          })
+          .returning();
+
+        const existingContent = await db.query.chapterContent.findFirst({
+          where: eq(chapterContent.chapterId, chapterRow.id),
+        });
+        if (!existingContent) {
+          await db.insert(chapterContent).values({
+            chapterId: chapterRow.id,
+            intro,
+            objectives,
+            keyPoints,
+            definitions,
+            examples,
+            practiceQuestions: practice,
+            revision,
+            body: null,
+          });
+        }
+
+        const matTitle = `${title} — Study Notes (${cls.name})`;
+        const existingMat = await db.query.studyMaterials.findFirst({
+          where: eq(studyMaterials.chapterId, chapterRow.id),
+        });
+        if (!existingMat) {
+          const pdfBuffer = await generateChapterPdf({
+            className: cls.name,
+            subjectName: subj.name,
+            chapterNo: no,
+            chapterTitle: title,
+            intro,
+            objectives,
+            keyPoints,
+            definitions,
+            examples,
+            practiceQuestions: practice,
+            revision,
+            body: null,
+          });
+          const meta = fileStorage.validateAndStore(
+            pdfBuffer,
+            `${slugify(cls.name)}_${slugify(subj.name)}_ch${no}.pdf`,
+            "application/pdf",
+          );
+          await db.insert(studyMaterials).values({
+            chapterId: chapterRow.id,
+            title: matTitle,
+            description: `Original study notes for ${cls.name} — ${subj.name}, Chapter ${no}: ${title}.`,
+            fileId: meta.id,
+            type: "pdf",
+            downloadAllowed: true,
+            status: "published",
+          });
+          pdfCount += 1;
+        }
+        chapterCount += 1;
+      }
+    }
+  }
+
+  console.log(
+    `✓ Curriculum seeded: ${classIdx} classes, ${chapterCount} chapters, ${pdfCount} generated PDFs.`,
+  );
+}
+
 async function main() {
   await initDb();
   const db = getDb();
@@ -243,6 +383,7 @@ async function main() {
 
   await ensureDemoStudents(db, courseId);
   await seedSampleContent(db, admin.id, courseId);
+  await seedCurriculum(db);
 
   console.log("✓ Seed complete.");
   console.log(`Admin login: ${(process.env.SEED_ADMIN_EMAIL || "admin@gyaansetu.app")} / ${process.env.SEED_ADMIN_PASSWORD || "Admin@123"}`);
