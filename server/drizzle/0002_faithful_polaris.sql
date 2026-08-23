@@ -1,3 +1,5 @@
+CREATE TYPE "public"."class_status" AS ENUM('active', 'inactive', 'archived');--> statement-breakpoint
+CREATE TYPE "public"."chapter_status" AS ENUM('draft', 'published', 'archived');--> statement-breakpoint
 CREATE TABLE "chapter_content" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"chapter_id" uuid NOT NULL,

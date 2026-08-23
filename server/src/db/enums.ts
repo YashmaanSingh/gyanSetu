@@ -43,3 +43,21 @@ export const fileKindEnum = pgEnum("file_kind", [
 ]);
 export const classStatusEnum = pgEnum("class_status", ["active", "inactive", "archived"]);
 export const chapterStatusEnum = pgEnum("chapter_status", ["draft", "published", "archived"]);
+
+export const dailyTaskTypeEnum = pgEnum("daily_task_type", [
+  "mcq",
+  "truefalse",
+  "oneword",
+  "short",
+  "qa",
+]);
+export const dailyTaskStatusEnum = pgEnum("daily_task_status", [
+  "draft",
+  "published",
+  "archived",
+]);
+export const dailySubmissionStatusEnum = pgEnum("daily_submission_status", [
+  "submitted",
+  "pending_review",
+  "evaluated",
+]);

@@ -28,6 +28,11 @@ export {
   priorityEnum,
   audienceEnum,
   fileKindEnum,
+  classStatusEnum,
+  chapterStatusEnum,
+  dailyTaskTypeEnum,
+  dailyTaskStatusEnum,
+  dailySubmissionStatusEnum,
 } from "./enums";
 
 const id = () => uuid("id").primaryKey().default(sql`gen_random_uuid()`);
@@ -359,3 +364,99 @@ export const studyMaterials = pgTable("study_materials", {
   createdAt: ts.createdAt,
   updatedAt: ts.updatedAt,
 });
+
+// ===== Daily Tasks =====
+// Admin-created short daily learning activities (MCQ / True-False / One-word / Short answer / Quick Q&A)
+// targeted to a class (+ optional subject / chapter). Students submit once (unless reattempt allowed)
+// and objective answers are auto-evaluated; subjective answers are flagged for manual review.
+
+export const dailyTasks = pgTable("daily_tasks", {
+  id: id(),
+  title: text("title").notNull(),
+  instructions: text("instructions"),
+  type: E.dailyTaskTypeEnum("type").notNull().default("mcq"),
+  classId: uuid("class_id").notNull().references(() => classes.id, { onDelete: "cascade" }),
+  className: text("class_name").notNull(),
+  subjectId: uuid("subject_id").references(() => subjects.id, { onDelete: "set null" }),
+  subjectName: text("subject_name"),
+  chapterId: uuid("chapter_id").references(() => chapters.id, { onDelete: "set null" }),
+  chapterTitle: text("chapter_title"),
+  taskDate: date("task_date").notNull().default(sql`current_date`),
+  timeLimitMinutes: integer("time_limit_minutes").notNull().default(0),
+  totalMarks: integer("total_marks").notNull().default(0),
+  status: E.dailyTaskStatusEnum("status").notNull().default("draft"),
+  allowReattempt: boolean("allow_reattempt").notNull().default(false),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: ts.createdAt,
+  updatedAt: ts.updatedAt,
+});
+
+export const dailyTaskQuestions = pgTable(
+  "daily_task_questions",
+  {
+    id: id(),
+    taskId: uuid("task_id").notNull().references(() => dailyTasks.id, { onDelete: "cascade" }),
+    text: text("text").notNull(),
+    marks: integer("marks").notNull().default(1),
+    orderIndex: integer("order_index").notNull().default(0),
+    // MCQ / True-False
+    correctKey: text("correct_key"),
+    // One-word (exact answer configured)
+    correctAnswer: text("correct_answer"),
+    caseInsensitive: boolean("case_insensitive").notNull().default(true),
+    explanation: text("explanation"),
+    createdAt: ts.createdAt,
+  },
+  (t) => ({ taskIdx: index("idx_dt_question_task").on(t.taskId) })
+);
+
+export const dailyTaskOptions = pgTable(
+  "daily_task_options",
+  {
+    id: id(),
+    questionId: uuid("question_id").notNull().references(() => dailyTaskQuestions.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    text: text("text").notNull(),
+    isCorrect: boolean("is_correct").notNull().default(false),
+    orderIndex: integer("order_index").notNull().default(0),
+  },
+  (t) => ({ qIdx: index("idx_dt_option_question").on(t.questionId) })
+);
+
+export const dailyTaskSubmissions = pgTable(
+  "daily_task_submissions",
+  {
+    id: id(),
+    taskId: uuid("task_id").notNull().references(() => dailyTasks.id, { onDelete: "cascade" }),
+    studentUserId: uuid("student_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    attemptNo: integer("attempt_no").notNull().default(1),
+    status: E.dailySubmissionStatusEnum("status").notNull().default("submitted"),
+    submittedAt: timestamp("submitted_at", { mode: "date" }).notNull().defaultNow(),
+    score: integer("score"),
+    totalMarks: integer("total_marks").notNull().default(0),
+    percentage: numeric("percentage", { precision: 5, scale: 2, mode: "number" }),
+    feedback: text("feedback"),
+    reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+    reviewedAt: timestamp("reviewed_at", { mode: "date" }),
+    createdAt: ts.createdAt,
+  },
+  (t) => ({
+    uniq: uniqueIndex("uq_dt_submission").on(t.taskId, t.studentUserId, t.attemptNo),
+    studentIdx: index("idx_dt_submission_student").on(t.studentUserId),
+  })
+);
+
+export const dailyTaskAnswers = pgTable(
+  "daily_task_answers",
+  {
+    id: id(),
+    submissionId: uuid("submission_id").notNull().references(() => dailyTaskSubmissions.id, { onDelete: "cascade" }),
+    questionId: uuid("question_id").notNull().references(() => dailyTaskQuestions.id, { onDelete: "cascade" }),
+    selectedKey: text("selected_key"),
+    responseText: text("response_text"),
+    isCorrect: boolean("is_correct"),
+    autoEvaluated: boolean("auto_evaluated").notNull().default(false),
+    marksAwarded: integer("marks_awarded"),
+  },
+  (t) => ({ subIdx: index("idx_dt_answer_submission").on(t.submissionId) })
+);

@@ -208,3 +208,89 @@ export const paginationSchema = z.object({
   q: z.string().optional(),
   sort: z.string().optional(),
 });
+
+// ===== Daily Tasks =====
+const dailyTaskType = z.enum(["mcq", "truefalse", "oneword", "short", "qa"]);
+
+const dailyOptionSchema = z.object({
+  key: z.string().min(1),
+  text: z.string().min(1),
+  isCorrect: z.boolean().optional(),
+});
+
+export const dailyQuestionSchema = z
+  .object({
+    text: z.string().min(1, "Question text is required"),
+    marks: z.number().int().min(1).max(100).optional(),
+    orderIndex: z.number().int().min(0).optional(),
+    // MCQ
+    options: z.array(dailyOptionSchema).max(8).optional(),
+    correctKey: z.string().min(1).optional(),
+    // One-word
+    correctAnswer: z.string().min(1).optional(),
+    caseInsensitive: z.boolean().optional(),
+    explanation: z.string().optional().or(z.literal("")),
+  })
+  .superRefine((q, ctx) => {
+    if (q.options && q.options.filter((o) => o.isCorrect).length !== 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Mark exactly one option as correct (MCQ)",
+        path: ["options"],
+      });
+    }
+    if (q.correctKey && (!q.options || !q.options.some((o) => o.key === q.correctKey))) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "correctKey must match one of the option keys",
+        path: ["correctKey"],
+      });
+    }
+  });
+
+export const createDailyTaskSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200),
+  instructions: z.string().optional().or(z.literal("")),
+  type: dailyTaskType,
+  classId: z.string().uuid("Select a valid class"),
+  subjectId: z.string().uuid().optional().or(z.literal("")),
+  chapterId: z.string().uuid().optional().or(z.literal("")),
+  taskDate: z.string().min(1, "Task date is required"),
+  timeLimitMinutes: z.number().int().min(0).max(600).optional(),
+  allowReattempt: z.boolean().optional(),
+  status: z.enum(["draft", "published", "archived"]).optional(),
+  questions: z
+    .array(dailyQuestionSchema)
+    .min(1, "Add at least one question")
+    .max(100),
+});
+
+export const updateDailyTaskSchema = createDailyTaskSchema.partial().extend({
+  questions: z.array(dailyQuestionSchema).min(1).max(100).optional(),
+});
+
+export const dailySubmitSchema = z.object({
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().uuid(),
+        selectedKey: z.string().max(20).nullable().optional(),
+        responseText: z.string().max(5000).nullable().optional(),
+      })
+    )
+    .min(1),
+});
+
+export const dailyReviewSchema = z.object({
+  feedback: z.string().optional().or(z.literal("")),
+  status: z.enum(["pending_review", "evaluated"]).optional(),
+  answers: z
+    .array(
+      z.object({
+        questionId: z.string().uuid(),
+        marksAwarded: z.number().int().min(0).max(100).nullable().optional(),
+        isCorrect: z.boolean().nullable().optional(),
+      })
+    )
+    .optional(),
+});

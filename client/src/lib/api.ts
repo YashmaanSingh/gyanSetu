@@ -4,6 +4,13 @@ import type {
   ChapterRef,
   ChapterDetail,
   MyClassResponse,
+  DailyTaskListItem,
+  DailyTaskDetail,
+  DailyTaskResult,
+  DailySubmission,
+  DailyTaskAdminDetail,
+  DailyQuestionAdmin,
+  DailyTaskType,
 } from "./types";
 
 export const API_URL = (import.meta.env.VITE_API_URL as string | undefined) || "/api";
@@ -125,6 +132,49 @@ export const adminContentApi = {
     api.put(`/content/materials/${materialId}`, body),
   deleteMaterial: (materialId: string) => api.del(`/content/materials/${materialId}`),
 };
+
+export const dailyTaskApi = {
+  // student
+  today: () => api.get<{ tasks: any[] }>("/daily-tasks/today"),
+  history: (page = 1) => api.get<{ tasks: any[]; pagination: any }>("/daily-tasks/history", { page }),
+  getTask: (id: string) => api.get<DailyTaskDetail>(`/daily-tasks/${id}`),
+  submit: (id: string, answers: { questionId: string; selectedKey?: string | null; responseText?: string | null }[]) =>
+    api.post<DailyTaskResult>(`/daily-tasks/${id}/submit`, { answers }),
+  // admin
+  list: (q?: Record<string, any>) => api.get<{ tasks: DailyTaskListItem[]; pagination: any }>("/daily-tasks", q),
+  getAdmin: (id: string) => api.get<DailyTaskAdminDetail>(`/daily-tasks/${id}/admin`),
+  create: (body: any) => api.post("/daily-tasks", body),
+  update: (id: string, body: any) => api.put(`/daily-tasks/${id}`, body),
+  publish: (id: string, status: "draft" | "published" | "archived") =>
+    api.post(`/daily-tasks/${id}/publish`, { status }),
+  remove: (id: string) => api.del(`/daily-tasks/${id}`),
+  submissions: (id: string) => api.get<{ submissions: DailySubmission[] }>(`/daily-tasks/${id}/submissions`),
+  getSubmission: (submissionId: string) => api.get<DailyTaskResult>(`/daily-tasks/submissions/${submissionId}`),
+  review: (submissionId: string, body: any) =>
+    api.post(`/daily-tasks/submissions/${submissionId}/review`, body),
+};
+
+export const dailyTaskTypeLabels: Record<DailyTaskType, string> = {
+  mcq: "MCQ",
+  truefalse: "True / False",
+  oneword: "One Word",
+  short: "Short Answer",
+  qa: "Quick Q&A",
+};
+
+export interface DailyTaskDraft {
+  title: string;
+  instructions?: string;
+  type: DailyTaskType;
+  classId: string;
+  subjectId?: string;
+  chapterId?: string;
+  taskDate: string;
+  timeLimitMinutes?: number;
+  allowReattempt?: boolean;
+  status?: "draft" | "published" | "archived";
+  questions: DailyQuestionAdmin[];
+}
 
 function withQuery(path: string, q?: Record<string, any>) {
   if (!q) return path;

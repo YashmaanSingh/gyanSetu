@@ -15,6 +15,10 @@ import AdminAnnouncements from "@/pages/admin/AnnouncementsPage";
 import AdminReports from "@/pages/admin/ReportsPage";
 import AdminSettings from "@/pages/admin/SettingsPage";
 import AdminProfile from "@/pages/admin/ProfilePage";
+import AdminDailyTasks from "@/pages/admin/DailyTasksPage";
+import AdminDailyTaskEditor from "@/pages/admin/DailyTaskEditorPage";
+import AdminDailyTaskResults from "@/pages/admin/DailyTaskResultsPage";
+import AdminCurriculum from "@/pages/admin/CurriculumPage";
 
 import StudentDashboard from "@/pages/student/DashboardPage";
 import StudentMaterials from "@/pages/student/MaterialsPage";
@@ -26,6 +30,7 @@ import StudentProfile from "@/pages/student/ProfilePage";
 import StudentSearch from "@/pages/student/SearchPage";
 import StudentRegister from "@/pages/student/StudentRegisterPage";
 import StudentLibrary from "@/pages/student/LibraryPage";
+import StudentDailyTasks from "@/pages/student/DailyTasksPage";
 
 function RequireAuth({ role, children }: { role: "admin" | "student"; children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -68,6 +73,11 @@ export default function App() {
         <Route path="reports" element={<AdminReports />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="profile" element={<AdminProfile />} />
+        <Route path="daily-tasks" element={<AdminDailyTasks />} />
+        <Route path="daily-tasks/new" element={<AdminDailyTaskEditor />} />
+        <Route path="daily-tasks/:id/edit" element={<AdminDailyTaskEditor />} />
+        <Route path="daily-tasks/:id/submissions" element={<AdminDailyTaskResults />} />
+        <Route path="curriculum" element={<AdminCurriculum />} />
       </Route>
 
       <Route
@@ -86,6 +96,7 @@ export default function App() {
         <Route path="notifications" element={<StudentNotifications />} />
         <Route path="search" element={<StudentSearch />} />
         <Route path="library" element={<StudentLibrary />} />
+        <Route path="daily-tasks" element={<StudentDailyTasks />} />
         <Route path="profile" element={<StudentProfile />} />
       </Route>
 

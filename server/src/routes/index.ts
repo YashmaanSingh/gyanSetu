@@ -11,6 +11,7 @@ import metaRoutes from "./meta.routes";
 import searchRoutes from "./search.routes";
 import fileRoutes from "./files.routes";
 import contentRoutes from "./content.routes";
+import dailyTaskRoutes from "./dailyTask.routes";
 
 export function mountRoutes(app: Express) {
   app.use("/api/auth", authRoutes);
@@ -25,4 +26,5 @@ export function mountRoutes(app: Express) {
   app.use("/api/search", searchRoutes);
   app.use("/api", fileRoutes);
   app.use("/api/content", contentRoutes);
+  app.use("/api/daily-tasks", dailyTaskRoutes);
 }

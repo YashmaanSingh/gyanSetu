@@ -221,3 +221,125 @@ export interface MyClassResponse {
   class: ClassItem | null;
   subjects: SubjectRef[];
 }
+
+// ===== Daily Tasks =====
+export type DailyTaskType = "mcq" | "truefalse" | "oneword" | "short" | "qa";
+
+export interface DailyTaskListItem {
+  id: string;
+  title: string;
+  type: DailyTaskType;
+  className: string;
+  subjectName?: string | null;
+  chapterTitle?: string | null;
+  taskDate: string;
+  status: string;
+  totalMarks: number;
+  questionCount: number;
+  createdAt: string;
+}
+
+export interface DailyTaskAttempt {
+  attempted: boolean;
+  attemptsUsed: number;
+  status: string | null;
+  evaluated: boolean;
+}
+
+export interface DailyQuestionStudent {
+  id: string;
+  text: string;
+  marks: number;
+  orderIndex: number;
+  explanation?: string | null;
+  options?: { key: string; text: string }[];
+}
+
+export interface DailyTaskDetail {
+  task: {
+    id: string;
+    title: string;
+    instructions?: string | null;
+    type: DailyTaskType;
+    className: string;
+    subjectName?: string | null;
+    taskDate: string;
+    timeLimitMinutes: number;
+    totalMarks: number;
+    status: string;
+  };
+  questions: DailyQuestionStudent[];
+  attempt: { attempted: boolean; submission?: any };
+}
+
+export interface DailyTaskResult {
+  result: {
+    submissionId: string;
+    taskId: string;
+    attemptNo: number;
+    status: string;
+    score: number | null;
+    totalMarks: number;
+    percentage: number | null;
+    feedback?: string | null;
+    reviewedAt?: string | null;
+    submittedAt?: string;
+  };
+  questions: {
+    id: string;
+    text: string;
+    type: DailyTaskType;
+    options: { key: string; text: string }[];
+    responseText?: string | null;
+    selectedKey?: string | null;
+    isCorrect: boolean | null;
+    marksAwarded: number | null;
+    explanation?: string | null;
+  }[];
+}
+
+export interface DailySubmission {
+  submissionId: string;
+  studentName: string;
+  studentEmail: string;
+  className?: string | null;
+  status: string;
+  score: number | null;
+  totalMarks: number;
+  percentage: number | null;
+  feedback?: string | null;
+  submittedAt?: string;
+}
+
+export interface DailyQuestionAdmin {
+  id?: string;
+  text: string;
+  marks?: number;
+  orderIndex?: number;
+  correctKey?: string;
+  correctAnswer?: string;
+  caseInsensitive?: boolean;
+  explanation?: string;
+  options?: { key: string; text: string; isCorrect?: boolean }[];
+}
+
+export interface DailyTaskAdminDetail {
+  task: {
+    id: string;
+    title: string;
+    instructions?: string | null;
+    type: DailyTaskType;
+    classId: string;
+    className: string;
+    subjectId?: string | null;
+    subjectName?: string | null;
+    chapterId?: string | null;
+    chapterTitle?: string | null;
+    taskDate: string;
+    timeLimitMinutes: number;
+    allowReattempt: boolean;
+    status: string;
+    totalMarks: number;
+  };
+  questions: DailyQuestionAdmin[];
+}

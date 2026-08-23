@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, dailyTaskApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge, LoadingScreen, ErrorState } from "@/components/ui/misc";
-import { CalendarDays, BookOpen, ListChecks, Megaphone, ArrowRight, Play } from "lucide-react";
+import { CalendarDays, BookOpen, ListChecks, Megaphone, ArrowRight, Play, CheckCircle2, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { fmtDate } from "@/lib/format";
 import type { Activity, Announcement } from "@/lib/types";
@@ -14,12 +14,15 @@ export default function StudentDashboard() {
   const nav = useNavigate();
   const todayQ = useQuery({ queryKey: ["student-today"], queryFn: () => api.get<{ activities: Activity[] }>("/activities/today") });
   const annQ = useQuery({ queryKey: ["student-ann"], queryFn: () => api.get<{ announcements: Announcement[] }>("/announcements", { pageSize: 5 }) });
+  const dtQ = useQuery({ queryKey: ["student-dt-today"], queryFn: () => dailyTaskApi.today() });
 
   if (todayQ.isLoading) return <LoadingScreen />;
   if (todayQ.error) return <ErrorState message="Failed to load" onRetry={() => todayQ.refetch()} />;
 
   const activities = todayQ.data?.activities ?? [];
   const anns = annQ.data?.announcements ?? [];
+  const dtTasks = dtQ.data?.tasks ?? [];
+  const pendingDt = dtTasks.filter((t) => !t.attempt?.attempted);
 
   return (
     <div className="space-y-5">
@@ -31,8 +34,31 @@ export default function StudentDashboard() {
       <div className="grid grid-cols-3 gap-3">
         <Stat icon={BookOpen} label="Study" to="/student/materials" tone="brand" />
         <Stat icon={ListChecks} label="Quizzes" to="/student/activities" tone="emerald" />
-        <Stat icon={CalendarDays} label="Tasks" to="/student/activities" tone="amber" />
+        <Stat icon={CalendarDays} label="Tasks" to="/student/daily-tasks" tone="amber" />
       </div>
+
+      {pendingDt.length > 0 && (
+        <Card className="bg-gradient-to-br from-brand-600 to-indigo-600 text-white">
+          <div className="p-4">
+            <div className="flex items-center gap-2 text-white/90 text-sm font-medium">
+              <Sparkles className="w-4 h-4" /> Today's Daily Task
+            </div>
+            <div className="mt-2 space-y-2">
+              {pendingDt.map((t: any) => (
+                <div key={t.id} className="flex items-center justify-between gap-3 bg-white/10 rounded-xl p-2.5">
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">{t.title}</p>
+                    <p className="text-xs text-white/80">{t.subjectName || "General"} · {t.questionCount} Q · {t.totalMarks} marks</p>
+                  </div>
+                  <Button size="sm" className="bg-white text-brand-700 hover:bg-white/90" onClick={() => nav(`/student/daily-tasks`)}>
+                    <Play className="w-3.5 h-3.5" /> Start Task
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <CardHeader

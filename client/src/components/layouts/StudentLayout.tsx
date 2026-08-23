@@ -19,7 +19,7 @@ const nav = [
   { to: "/student/dashboard", label: "Home", icon: Home },
   { to: "/student/library", label: "Library", icon: Library },
   { to: "/student/materials", label: "Study", icon: BookOpen },
-  { to: "/student/activities", label: "Tasks", icon: CalendarDays },
+  { to: "/student/daily-tasks", label: "Tasks", icon: CalendarDays },
   { to: "/student/search", label: "Search", icon: Search },
   { to: "/student/profile", label: "Me", icon: User },
 ];

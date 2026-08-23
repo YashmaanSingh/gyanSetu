@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
+  BookMarked,
   CalendarDays,
   ListChecks,
   Megaphone,
@@ -11,6 +12,7 @@ import {
   LogOut,
   GraduationCap,
   Search,
+  ClipboardList,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { resolveFileUrl } from "@/lib/api";
@@ -20,6 +22,8 @@ const nav = [
   { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin/students", label: "Students", icon: Users },
   { to: "/admin/materials", label: "Materials", icon: BookOpen },
+  { to: "/admin/curriculum", label: "Curriculum", icon: BookMarked },
+  { to: "/admin/daily-tasks", label: "Daily Tasks", icon: ClipboardList },
   { to: "/admin/activities", label: "Activities", icon: CalendarDays },
   { to: "/admin/quizzes", label: "Quizzes", icon: ListChecks },
   { to: "/admin/announcements", label: "Announcements", icon: Megaphone },
