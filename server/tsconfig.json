@@ -19,5 +19,5 @@
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "src/db/migrate-cli.ts", "src/seed/**"]
+  "exclude": ["node_modules", "dist", "src/seed/**"]
 }
