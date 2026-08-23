@@ -1,4 +1,6 @@
-import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "pdf-lib";
+import { PDFDocument, rgb, PDFFont, PDFPage } from "pdf-lib";
+import fs from "node:fs";
+import path from "node:path";
 
 export interface ChapterPdfInput {
   className: string;
@@ -39,8 +41,10 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
 
 export async function generateChapterPdf(input: ChapterPdfInput): Promise<Buffer> {
   const pdf = await PDFDocument.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const regularFontBytes = fs.readFileSync(path.join(__dirname, "../fonts/NotoSansDevanagari-Regular.ttf"));
+  const boldFontBytes = fs.readFileSync(path.join(__dirname, "../fonts/NotoSansDevanagari-Bold.ttf"));
+  const font = await pdf.embedFont(regularFontBytes);
+  const bold = await pdf.embedFont(boldFontBytes);
 
   const PAGE_W = 595.28; // A4
   const PAGE_H = 841.89;
@@ -68,9 +72,9 @@ export async function generateChapterPdf(input: ChapterPdfInput): Promise<Buffer
 
   const bullet = (text: string, size: number, f: PDFFont, color = INK) => {
     const lines = wrap(text, f, size, CONTENT_W - 16);
-    lines.forEach((ln, i) => {
+    lines.forEach((ln) => {
       ensure(size + 4);
-      if (i === 0) page.drawText("•", { x: MARGIN, y: y - size, size, font: f, color: BRAND });
+      page.drawRectangle({ x: MARGIN + 2, y: y - size + 2, width: 4, height: 4, color: BRAND });
       page.drawText(ln, { x: MARGIN + 16, y: y - size, size, font: f, color });
       y -= size + 4;
     });
