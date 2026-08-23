@@ -1,4 +1,5 @@
 import { PDFDocument, rgb, PDFFont, PDFPage } from "pdf-lib";
+import fontkit from '@pdf-lib/fontkit';
 import fs from "node:fs";
 import path from "node:path";
 
@@ -41,10 +42,11 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number): stri
 
 export async function generateChapterPdf(input: ChapterPdfInput): Promise<Buffer> {
   const pdf = await PDFDocument.create();
+  pdf.registerFontkit(fontkit);
   const regularFontBytes = fs.readFileSync(path.join(__dirname, "../../fonts/NotoSansDevanagari-Regular.ttf"));
   const boldFontBytes = fs.readFileSync(path.join(__dirname, "../../fonts/NotoSansDevanagari-Bold.ttf"));
-  const font = await pdf.embedFont(regularFontBytes);
-  const bold = await pdf.embedFont(boldFontBytes);
+  const font = await pdf.embedFont(regularFontBytes, { subset: true });
+  const bold = await pdf.embedFont(boldFontBytes, { subset: true });
 
   const PAGE_W = 595.28; // A4
   const PAGE_H = 841.89;
