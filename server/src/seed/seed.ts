@@ -365,11 +365,25 @@ async function seedCurriculum(db: any) {
             `${slugify(cls.name)}_${slugify(subj.name)}_ch${no}.pdf`,
             "application/pdf",
           );
+          // A files record must exist before study_materials references its id (FK).
+          const [fileRow] = await db
+            .insert(files)
+            .values({
+              id: meta.id,
+              originalName: meta.originalName,
+              storedName: meta.storedName,
+              mimeType: meta.mimeType,
+              ext: meta.ext,
+              sizeBytes: meta.sizeBytes,
+              kind: meta.kind,
+              uploadedBy: null,
+            })
+            .returning();
           await db.insert(studyMaterials).values({
             chapterId: chapterRow.id,
             title: matTitle,
             description: `Original study notes for ${cls.name} — ${subj.name}, Chapter ${no}: ${title}.`,
-            fileId: meta.id,
+            fileId: fileRow.id,
             type: "pdf",
             downloadAllowed: true,
             status: "published",
