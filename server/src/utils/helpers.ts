@@ -33,6 +33,7 @@ export function setRefreshCookie(res: Response, token: string, maxAgeSeconds: nu
 export function clearRefreshCookie(res: Response) {
   res.clearCookie("refresh_token", {
     sameSite: config.isProd ? "none" : "lax",
+    secure: config.isProd,
     path: "/",
   });
 }

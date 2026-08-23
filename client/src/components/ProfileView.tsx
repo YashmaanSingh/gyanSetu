@@ -8,6 +8,23 @@ import { useToast } from "@/components/ui/Toast";
 import { Avatar, FileUpload } from "@/components/ui/FileUpload";
 import { Save, Lock } from "lucide-react";
 
+const CLASS_OPTIONS = [
+  "LKG",
+  "UKG",
+  "1st",
+  "2nd",
+  "3rd",
+  "4th",
+  "5th",
+  "6th",
+  "7th",
+  "8th",
+  "9th",
+  "10th",
+  "11th",
+  "12th",
+];
+
 export default function ProfileView({ title }: { title: string }) {
   const { user, refreshUser } = useAuth();
   const { toast } = useToast();
@@ -15,6 +32,7 @@ export default function ProfileView({ title }: { title: string }) {
     name: user?.name ?? "",
     email: user?.email ?? "",
     phone: user?.phone ?? "",
+    className: (user as any)?.className ?? "",
     guardianName: (user as any)?.guardianName ?? "",
     bio: (user as any)?.bio ?? "",
     avatarFileId: user?.avatarFileId ?? null,
@@ -29,7 +47,7 @@ export default function ProfileView({ title }: { title: string }) {
     e.preventDefault();
     setBusy(true);
     try {
-      await api.put("/profile", { ...form, avatarFileId: avatar?.id ?? null });
+      await api.put("/profile", { ...form, avatarFileId: avatar?.id ?? null, className: form.className || null });
       await refreshUser();
       toast("Profile updated", "success");
     } catch (err: any) {
@@ -77,6 +95,22 @@ export default function ProfileView({ title }: { title: string }) {
           <Field label="Phone">
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </Field>
+          {(user as any)?.className !== undefined && (
+            <Field label="Class">
+              <select
+                className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-3 text-sm focus:border-brand-500 focus:outline-none"
+                value={form.className}
+                onChange={(e) => setForm({ ...form, className: e.target.value })}
+              >
+                <option value="">Not set</option>
+                {CLASS_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           {(user as any)?.guardianName !== undefined && (
             <Field label="Guardian name">
               <Input value={form.guardianName} onChange={(e) => setForm({ ...form, guardianName: e.target.value })} />

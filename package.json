@@ -2,9 +2,9 @@
   "name": "gyaansetu",
   "version": "1.0.0",
   "private": true,
-  "description": "GyaanSetu LMS — full-stack student learning portal (Express + PGlite + React PWA)",
+  "description": "GyaanSetu LMS — full-stack student learning portal (Express + PostgreSQL + React PWA)",
   "scripts": {
-    "build": "npm --prefix server install && npm --prefix server run build && npm --prefix client install && npm --prefix client run build && npm --prefix server run db:seed",
+    "build": "npm --prefix server install && npm --prefix server run build && npm --prefix client install && npm --prefix client run build",
     "start": "node server/dist/index.js"
   },
   "engines": {

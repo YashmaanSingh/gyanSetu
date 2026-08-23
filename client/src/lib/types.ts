@@ -18,6 +18,7 @@ export interface Student {
   email: string;
   courseId?: string | null;
   courseName?: string | null;
+  className?: string | null;
   batch?: string | null;
   status: string;
   guardianName?: string | null;

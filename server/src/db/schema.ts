@@ -92,6 +92,7 @@ export const students = pgTable("students", {
   userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
   studentCode: text("student_code").notNull().unique(),
   phone: text("phone"),
+  className: text("class_name"),
   courseId: uuid("course_id").references(() => courses.id, { onDelete: "set null" }),
   batch: text("batch"),
   guardianName: text("guardian_name"),

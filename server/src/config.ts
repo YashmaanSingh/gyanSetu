@@ -29,12 +29,6 @@ export const config = {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
   maxUploadMb: num("MAX_UPLOAD_MB", 25),
-  dataDir: env(
-    "DATA_DIR",
-    process.env.LOCALAPPDATA
-      ? path.join(process.env.LOCALAPPDATA, "GyaanSetu", "data")
-      : path.resolve("./.data")
-  ),
   clientDist: env("CLIENT_DIST", "") || path.resolve(process.cwd(), "client", "dist"),
   trustProxy: env("TRUST_PROXY", "1") === "1",
   devReturnResetToken: env("DEV_RETURN_RESET_TOKEN", "true") === "true",
@@ -55,7 +49,4 @@ export function corsOrigins(): string[] | string | boolean {
 
 if (!fs.existsSync(config.uploadDir)) {
   fs.mkdirSync(config.uploadDir, { recursive: true });
-}
-if (!fs.existsSync(config.dataDir)) {
-  fs.mkdirSync(config.dataDir, { recursive: true });
 }

@@ -8,27 +8,38 @@ import { Input, Field, Select } from "@/components/ui/Input";
 import { Card } from "@/components/ui/Card";
 import { useToast } from "@/components/ui/Toast";
 import { Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 
 type Errors = Record<string, string>;
+
+const CLASS_OPTIONS = [
+  "LKG",
+  "UKG",
+  "1st",
+  "2nd",
+  "3rd",
+  "4th",
+  "5th",
+  "6th",
+  "7th",
+  "8th",
+  "9th",
+  "10th",
+  "11th",
+  "12th",
+];
 
 export default function StudentRegisterPage() {
   const { setSession } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: coursesData } = useQuery({
-    queryKey: ["courses"],
-    queryFn: () => api.get<{ courses: { id: string; name: string }[] }>("/meta/courses"),
-  });
-  const courses = coursesData?.courses ?? [];
-
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
     studentCode: "",
-    courseId: "",
+    className: "",
+    dob: "",
     password: "",
     confirmPassword: "",
   });
@@ -47,8 +58,9 @@ export default function StudentRegisterPage() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email";
     if (!/^[+]?[0-9]{10,15}$/.test(form.phone.trim()))
       e.phone = "Enter a valid mobile number (10–15 digits)";
-    if (!form.studentCode.trim()) e.studentCode = "Student ID / enrollment number is required";
-    if (!form.courseId) e.courseId = "Please select a course / class";
+    if (!form.className) e.className = "Please select your class";
+    if (form.studentCode.trim() && form.studentCode.trim().length < 2)
+      e.studentCode = "Student ID must be at least 2 characters";
     if (form.password.length < 8) e.password = "Password must be at least 8 characters";
     if (form.confirmPassword !== form.password) e.confirmPassword = "Passwords do not match";
     return e;
@@ -67,7 +79,8 @@ export default function StudentRegisterPage() {
         email: form.email.trim(),
         phone: form.phone.trim(),
         studentCode: form.studentCode.trim(),
-        courseId: form.courseId,
+        className: form.className,
+        dob: form.dob || undefined,
         password: form.password,
         confirmPassword: form.confirmPassword,
       });
@@ -129,24 +142,33 @@ export default function StudentRegisterPage() {
               />
             </Field>
 
-            <Field label="Student ID / Enrollment Number" error={errors.studentCode}>
+            <Field label="Student ID (optional)" error={errors.studentCode}>
               <Input
                 value={form.studentCode}
                 onChange={(e) => set("studentCode", e.target.value)}
-                placeholder="GS-2026-004"
+                placeholder="Auto-generated if left blank"
                 autoCapitalize="characters"
               />
             </Field>
 
-            <Field label="Course / Class" error={errors.courseId}>
-              <Select value={form.courseId} onChange={(e) => set("courseId", e.target.value)}>
-                <option value="">Select course</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
+            <Field label="Class" error={errors.className}>
+              <Select value={form.className} onChange={(e) => set("className", e.target.value)}>
+                <option value="">Select your class</option>
+                {CLASS_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
                   </option>
                 ))}
               </Select>
+            </Field>
+
+            <Field label="Date of Birth (optional)" error={errors.dob}>
+              <Input
+                type="date"
+                value={form.dob}
+                onChange={(e) => set("dob", e.target.value)}
+                autoComplete="bday"
+              />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">

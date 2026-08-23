@@ -24,6 +24,23 @@ export const registerPasswordSchema = z
   .min(8, "Password must be at least 8 characters")
   .max(128);
 
+export const CLASS_NAMES = [
+  "LKG",
+  "UKG",
+  "1st",
+  "2nd",
+  "3rd",
+  "4th",
+  "5th",
+  "6th",
+  "7th",
+  "8th",
+  "9th",
+  "10th",
+  "11th",
+  "12th",
+] as const;
+
 export const registerStudentSchema = z
   .object({
     name: z.string().min(1, "Full name is required").max(120),
@@ -31,8 +48,10 @@ export const registerStudentSchema = z
     phone: z
       .string()
       .regex(/^[+]?[0-9]{10,15}$/, "Enter a valid mobile number (10–15 digits)"),
-    studentCode: z.string().min(2, "Student ID / enrollment number is required").max(40),
-    courseId: z.string().uuid("Please select a course / class"),
+    studentCode: z.string().min(2).max(40).optional().or(z.literal("")),
+    className: z.enum(CLASS_NAMES, { error: () => "Please select a class" }),
+    courseId: z.string().uuid().optional().or(z.literal("")),
+    dob: z.string().optional(),
     batch: z.string().max(60).optional().or(z.literal("")),
     enrollmentDate: z.string().optional(),
     password: registerPasswordSchema,
@@ -49,6 +68,7 @@ export const createStudentSchema = z.object({
   phone: z.string().max(30).optional().or(z.literal("")),
   studentCode: z.string().min(2).max(40),
   password: passwordSchema,
+  className: z.enum(CLASS_NAMES).optional(),
   courseId: z.string().uuid().optional().or(z.literal("")),
   batch: z.string().max(60).optional().or(z.literal("")),
   guardianName: z.string().max(120).optional().or(z.literal("")),
@@ -61,6 +81,7 @@ export const updateStudentSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   email: emailSchema.optional(),
   phone: z.string().max(30).optional().or(z.literal("")),
+  className: z.enum(CLASS_NAMES).optional(),
   courseId: z.string().uuid().optional().or(z.literal("")),
   batch: z.string().max(60).optional().or(z.literal("")),
   guardianName: z.string().max(120).optional().or(z.literal("")),

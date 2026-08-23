@@ -29,6 +29,7 @@ function serialize(row: any) {
     avatarFileId: row.u.avatarFileId,
     studentCode: row.s?.studentCode ?? null,
     phone: row.s?.phone ?? null,
+    className: row.s?.className ?? null,
     courseId: row.s?.courseId ?? null,
     courseName: row.c?.name ?? null,
     batch: row.s?.batch ?? null,
@@ -42,7 +43,6 @@ export async function registerStudent(req: Request, res: Response) {
   const data = registerStudentSchema.parse(req.body);
   const db = getDb();
   const email = data.email.toLowerCase().trim();
-  const studentCode = data.studentCode.trim();
 
   const [byEmail] = await db
     .select({ id: users.id })
@@ -50,11 +50,16 @@ export async function registerStudent(req: Request, res: Response) {
     .where(and(eq(users.email, email), isNull(users.deletedAt)));
   if (byEmail) throw ApiError.conflict("Email already in use");
 
-  const [byCode] = await db
-    .select({ id: students.userId })
-    .from(students)
-    .where(eq(students.studentCode, studentCode));
-  if (byCode) throw ApiError.conflict("Student ID already in use");
+  let studentCode = (data.studentCode || "").trim();
+  if (!studentCode) {
+    studentCode = "GS-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+  } else {
+    const [byCode] = await db
+      .select({ id: students.userId })
+      .from(students)
+      .where(eq(students.studentCode, studentCode));
+    if (byCode) throw ApiError.conflict("Student ID already in use");
+  }
 
   const hash = await hashPassword(data.password);
   const userId = (
@@ -74,8 +79,10 @@ export async function registerStudent(req: Request, res: Response) {
     userId,
     studentCode,
     phone: data.phone || null,
+    className: data.className || null,
     courseId: data.courseId || null,
     batch: data.batch || null,
+    dob: data.dob ? data.dob : undefined,
     enrollmentDate: data.enrollmentDate ? data.enrollmentDate : undefined,
   });
 
@@ -174,6 +181,7 @@ export async function createStudent(req: Request, res: Response) {
     userId,
     studentCode: data.studentCode.trim(),
     phone: data.phone || null,
+    className: data.className || null,
     courseId: data.courseId || null,
     batch: data.batch || null,
     guardianName: data.guardianName || null,
@@ -213,6 +221,7 @@ export async function updateStudent(req: Request, res: Response) {
     .update(students)
     .set({
       phone: data.phone ?? existing.s?.phone ?? null,
+      className: data.className ?? existing.s?.className ?? null,
       courseId: data.courseId ?? existing.s?.courseId ?? null,
       batch: data.batch ?? existing.s?.batch ?? null,
       guardianName: data.guardianName ?? existing.s?.guardianName ?? null,

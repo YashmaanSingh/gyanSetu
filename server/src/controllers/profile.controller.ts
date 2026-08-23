@@ -21,6 +21,7 @@ export async function updateProfile(req: Request, res: Response) {
       .update(students)
       .set({
         phone: body.phone ?? undefined,
+        className: body.className ?? undefined,
         guardianName: body.guardianName ?? undefined,
         updatedAt: new Date(),
       })

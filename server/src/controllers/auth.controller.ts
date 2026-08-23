@@ -56,6 +56,7 @@ async function loadProfile(userId: string) {
       ...base,
       studentCode: row.s.studentCode,
       phone: row.s.phone,
+      className: row.s.className,
       courseId: row.s.courseId,
       batch: row.s.batch,
       guardianName: row.s.guardianName,
