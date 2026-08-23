@@ -19,11 +19,6 @@ export const studentLoginSchema = z.object({
   rememberMe: z.boolean().optional(),
 });
 
-export const registerPasswordSchema = z
-  .string()
-  .min(8, "Password must be at least 8 characters")
-  .max(128);
-
 export const CLASS_NAMES = [
   "LKG",
   "UKG",
@@ -40,27 +35,6 @@ export const CLASS_NAMES = [
   "11th",
   "12th",
 ] as const;
-
-export const registerStudentSchema = z
-  .object({
-    name: z.string().min(1, "Full name is required").max(120),
-    email: emailSchema,
-    phone: z
-      .string()
-      .regex(/^[+]?[0-9]{10,15}$/, "Enter a valid mobile number (10–15 digits)"),
-    studentCode: z.string().min(2).max(40).optional().or(z.literal("")),
-    className: z.enum(CLASS_NAMES, { error: () => "Please select a class" }),
-    courseId: z.string().uuid().optional().or(z.literal("")),
-    dob: z.string().optional(),
-    batch: z.string().max(60).optional().or(z.literal("")),
-    enrollmentDate: z.string().optional(),
-    password: registerPasswordSchema,
-    confirmPassword: z.string().min(1, "Please confirm your password"),
-  })
-  .refine((d) => d.password === d.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
 
 export const createStudentSchema = z.object({
   name: z.string().min(1).max(120),

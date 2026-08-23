@@ -13,9 +13,7 @@ import {
   createStudentSchema,
   updateStudentSchema,
   paginationSchema,
-  registerStudentSchema,
 } from "../validators";
-import { issueTokensAsync, loadProfile } from "./auth.controller";
 import { computeStudentProgress } from "../utils/analytics";
 import { buildPagination } from "../utils/helpers";
 
@@ -39,71 +37,15 @@ function serialize(row: any) {
   };
 }
 
-export async function registerStudent(req: Request, res: Response) {
-  const data = registerStudentSchema.parse(req.body);
-  const db = getDb();
-  const email = data.email.toLowerCase().trim();
-
-  const [byEmail] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.email, email), isNull(users.deletedAt)));
-  if (byEmail) throw ApiError.conflict("Email already in use");
-
-  let studentCode = (data.studentCode || "").trim();
-  if (!studentCode) {
-    studentCode = "GS-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
-  } else {
-    const [byCode] = await db
-      .select({ id: students.userId })
-      .from(students)
-      .where(eq(students.studentCode, studentCode));
-    if (byCode) throw ApiError.conflict("Student ID already in use");
-  }
-
-  const hash = await hashPassword(data.password);
-  const userId = (
-    await db
-      .insert(users)
-      .values({
-        name: data.name.trim(),
-        email,
-        passwordHash: hash,
-        role: "student",
-        status: "active",
-      })
-      .returning({ id: users.id })
-  )[0].id;
-
-  await db.insert(students).values({
-    userId,
-    studentCode,
-    phone: data.phone || null,
-    className: data.className || null,
-    courseId: data.courseId || null,
-    batch: data.batch || null,
-    dob: data.dob ? data.dob : undefined,
-    enrollmentDate: data.enrollmentDate ? data.enrollmentDate : undefined,
-  });
-
-  const [row] = await db
-    .select({ u: users, s: students, c: courses })
-    .from(users)
-    .leftJoin(students, eq(students.userId, users.id))
-    .leftJoin(courses, eq(students.courseId, courses.id))
-    .where(eq(users.id, userId));
-
-  const accessToken = await issueTokensAsync(res, row.u, false);
-  res.status(201).json({ accessToken, user: await loadProfile(row.u.id) });
-}
-
 export async function listStudents(req: Request, res: Response) {
   const { page, pageSize, q, sort } = paginationSchema.parse(req.query);
   const db = getDb();
+  const cls = (req.query.class as string) || "";
   const conditions = [
     eq(users.role, "student"),
     isNull(users.deletedAt),
   ];
+  if (cls) conditions.push(eq(students.className, cls));
   if (q) {
     conditions.push(
       or(

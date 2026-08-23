@@ -11,18 +11,41 @@ import { Plus, Pencil, Trash2, RotateCw, Search, UserX, UserCheck } from "lucide
 import { fmtDate } from "@/lib/format";
 import type { Student } from "@/lib/types";
 
+const CLASS_OPTIONS = [
+  "LKG",
+  "UKG",
+  "1st",
+  "2nd",
+  "3rd",
+  "4th",
+  "5th",
+  "6th",
+  "7th",
+  "8th",
+  "9th",
+  "10th",
+  "11th",
+  "12th",
+];
+
 export default function StudentsPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
+  const [classFilter, setClassFilter] = useState("");
   const [editing, setEditing] = useState<Student | null>(null);
   const [open, setOpen] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["students", page, q],
+    queryKey: ["students", page, q, classFilter],
     queryFn: () =>
-      api.get<{ students: Student[]; pagination: any }>("/students", { page, pageSize: 12, q }),
+      api.get<{ students: Student[]; pagination: any }>("/students", {
+        page,
+        pageSize: 12,
+        q,
+        class: classFilter || undefined,
+      }),
   });
   const coursesQ = useQuery({ queryKey: ["courses"], queryFn: () => api.get<{ courses: any[] }>("/meta/courses") });
 
@@ -78,17 +101,34 @@ export default function StudentsPage() {
         </Button>
       </div>
 
-      <div className="relative">
-        <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-        <Input
-          value={q}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+          <Input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search name, email, student ID…"
+            className="pl-9"
+          />
+        </div>
+        <Select
+          value={classFilter}
           onChange={(e) => {
-            setQ(e.target.value);
+            setClassFilter(e.target.value);
             setPage(1);
           }}
-          placeholder="Search name, email, student ID…"
-          className="pl-9"
-        />
+          className="w-36 shrink-0"
+        >
+          <option value="">All classes</option>
+          {CLASS_OPTIONS.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </Select>
       </div>
 
       {data?.students.length === 0 ? (
@@ -166,6 +206,7 @@ function StudentForm({
     name: student?.name ?? "",
     email: student?.email ?? "",
     studentCode: student?.studentCode ?? "",
+    className: student?.className ?? "",
     password: "",
     courseId: student?.courseId ?? "",
     batch: student?.batch ?? "",
@@ -229,6 +270,20 @@ function StudentForm({
             <Input value={form.studentCode} onChange={(e) => set("studentCode", e.target.value)} required />
           </Field>
         </div>
+        <Field label="Class">
+          <Select
+            value={form.className}
+            onChange={(e) => set("className", e.target.value)}
+            required
+          >
+            <option value="">Select class</option>
+            {CLASS_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </Select>
+        </Field>
         {!student && (
           <Field label="Password" hint="Temporary password for first login">
             <Input value={form.password} onChange={(e) => set("password", e.target.value)} required />

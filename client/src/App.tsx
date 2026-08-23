@@ -28,7 +28,6 @@ import StudentProgress from "@/pages/student/ProgressPage";
 import StudentNotifications from "@/pages/student/NotificationsPage";
 import StudentProfile from "@/pages/student/ProfilePage";
 import StudentSearch from "@/pages/student/SearchPage";
-import StudentRegister from "@/pages/student/StudentRegisterPage";
 import StudentLibrary from "@/pages/student/LibraryPage";
 import StudentDailyTasks from "@/pages/student/DailyTasksPage";
 
@@ -53,7 +52,6 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<HomeRedirect />} />
-      <Route path="/register" element={<StudentRegister />} />
       <Route path="/login" element={<LoginPage />} />
 
       <Route

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { GraduationCap, LogIn } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
@@ -31,17 +31,6 @@ export default function LoginPage() {
       toast(err.message || "Login failed", "error");
     } finally {
       setBusy(false);
-    }
-  }
-
-  function fillDemo(r: Role) {
-    setRole(r);
-    if (r === "admin") {
-      setIdentifier("admin@gyaansetu.app");
-      setPassword("Admin@123");
-    } else {
-      setIdentifier("yashmaan@gyaansetu.app");
-      setPassword("Student@123");
     }
   }
 
@@ -98,30 +87,6 @@ export default function LoginPage() {
             </Button>
           </form>
         </Card>
-
-        {role === "student" && (
-          <p className="mt-4 text-center text-sm text-slate-500">
-            New student?{" "}
-            <Link to="/register" className="text-brand-600 font-medium">
-              Create an account
-            </Link>
-          </p>
-        )}
-
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={() => fillDemo("student")}
-            className="flex-1 text-xs py-2 rounded-lg bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50"
-          >
-            Use student demo
-          </button>
-          <button
-            onClick={() => fillDemo("admin")}
-            className="flex-1 text-xs py-2 rounded-lg bg-white ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50"
-          >
-            Use admin demo
-          </button>
-        </div>
       </div>
     </div>
   );
