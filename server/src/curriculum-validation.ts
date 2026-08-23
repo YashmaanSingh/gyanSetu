@@ -119,7 +119,9 @@ export async function validateCurriculum(): Promise<ValidationReport> {
     database = null;
   }
   
-  // If no database available, run static validation only
+  }
+
+// If no database available, run static validation only
   if (!database) {
     console.log('DB validation unavailable — DATABASE_URL not configured. Running static curriculum validation only.');
     const report: ValidationReport = {
@@ -132,6 +134,16 @@ export async function validateCurriculum(): Promise<ValidationReport> {
     };
     return report;
   }
+
+  // Validation report for DB-based validation
+  const report: ValidationReport = {
+    overall: 'PASS' as const,
+    classes: [],
+    subjects: [],
+    chapters: [],
+    materials: [],
+    summary: '',
+  };
 
   try {
     // 1. Get all active classes
@@ -277,12 +289,12 @@ for (const sub of subs) {
 
       const file = mat.fileId ? await database.query.files.findFirst({ where: eq(files.id, mat.fileId) }) : null;
 
-      const issues: string[] = [];
-      if (!ch) issues.push('Chapter not found');
-      if (!sub) issues.push('Subject not found');
-      if (!cls) issues.push('Class not found');
-      if (mat.fileId && !file) issues.push('Invalid file reference');
-      if (!mat.title) issues.push('Missing material title');
+      const matIssues: string[] = [];
+      if (!ch) matIssues.push('Chapter not found');
+      if (!sub) matIssues.push('Subject not found');
+      if (!cls) matIssues.push('Class not found');
+      if (mat.fileId && !file) matIssues.push('Invalid file reference');
+      if (!mat.title) matIssues.push('Missing material title');
 
       materialValidations.push({
         className: cls?.name || 'Unknown',
@@ -292,7 +304,7 @@ for (const sub of subs) {
         exists: true,
         validFileRef: mat.fileId ? !!file : true,
         status: (ch && sub && cls && (mat.fileId ? !!file : true) && mat.title) ? 'PASS' : 'FAIL',
-        issues,
+        issues: matIssues.length > 0 ? matIssues : issues,
       });
     }
 
