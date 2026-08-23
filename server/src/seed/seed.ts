@@ -111,7 +111,7 @@ async function seedSampleContent(db: any, adminId: string, courseId: string) {
   // Notes (10)
   for (let i = 1; i <= 10; i++) {
     const title = `Revision Notes ${i} — ${subjectNames[i % 5]}`;
-    const meta = fileStorage.validateAndStore(Buffer.from(sampleText(title)), `notes-${i}.txt`, "text/plain");
+    const meta = await fileStorage.validateAndStore(Buffer.from(sampleText(title)), `notes-${i}.txt`, "text/plain");
     const [f] = await db
       .insert(files)
       .values({ originalName: meta.originalName, storedName: meta.storedName, mimeType: meta.mimeType, ext: meta.ext, sizeBytes: meta.sizeBytes, kind: meta.kind })
@@ -135,7 +135,7 @@ async function seedSampleContent(db: any, adminId: string, courseId: string) {
   const bookTitles = ["Foundations of Algebra", "Wonderful World of Science", "English Grammar Essentials", "The History of Civilizations", "Understanding Our Planet"];
   for (let i = 0; i < bookTitles.length; i++) {
     const title = bookTitles[i];
-    const meta = fileStorage.validateAndStore(Buffer.from(sampleText(title)), `book-${i + 1}.txt`, "text/plain");
+    const meta = await fileStorage.validateAndStore(Buffer.from(sampleText(title)), `book-${i + 1}.txt`, "text/plain");
     const [f] = await db
       .insert(files)
       .values({ originalName: meta.originalName, storedName: meta.storedName, mimeType: meta.mimeType, ext: meta.ext, sizeBytes: meta.sizeBytes, kind: meta.kind })
@@ -249,27 +249,29 @@ function slugify(s: string) {
 }
 
 async function seedCurriculum(db: any) {
-  const [{ c }] = await db.select({ c: sql<number>`count(*)::int` }).from(classes);
-  if (Number(c) > 0) {
-    console.log("✓ Curriculum already exists — skipping curriculum seed.");
-    return;
-  }
-
-  let classIdx = 0;
+  let classCount = 0;
+  let subjectCount = 0;
   let chapterCount = 0;
   let pdfCount = 0;
 
-  for (const cls of CURRICULUM.classes) {
-    classIdx += 1;
-    const [classRow] = await db
-      .insert(classes)
-      .values({ name: cls.name, slug: slugify(cls.name), orderIndex: classIdx, description: cls.description || null })
-      .returning();
+  // CURRICULUM is a flat array of CurriculumClass (see curriculum.data.ts).
+  for (const cls of CURRICULUM) {
+    const lowerClass = cls.name.toLowerCase();
+    let classRow = (
+      await db.select().from(classes).where(sql`lower(${classes.name}) = ${lowerClass}`).limit(1)
+    )[0];
+    if (!classRow) {
+      [classRow] = await db
+        .insert(classes)
+        .values({ name: cls.name, slug: cls.slug, orderIndex: 0, description: cls.description || null })
+        .returning();
+      classCount += 1;
+    }
 
     let subIdx = 0;
     for (const subj of cls.subjects) {
       subIdx += 1;
-      // Reuse subject by name (subjects are global across classes)
+      // Subjects are global across classes — reuse by name.
       const lower = subj.name.toLowerCase();
       let subjectRow = (
         await db.select().from(subjects).where(sql`lower(${subjects.name}) = ${lower}`).limit(1)
@@ -277,8 +279,9 @@ async function seedCurriculum(db: any) {
       if (!subjectRow) {
         [subjectRow] = await db
           .insert(subjects)
-          .values({ name: subj.name, slug: slugify(subj.name) })
+          .values({ name: subj.name, slug: subj.slug })
           .returning();
+        subjectCount += 1;
       }
 
       await db
@@ -289,28 +292,37 @@ async function seedCurriculum(db: any) {
       let chIdx = 0;
       for (const ch of subj.chapters) {
         chIdx += 1;
-        const title = ch[0] as string;
-        const no = (ch[1] as number) || chIdx;
-        const intro = (ch[2] as string) || null;
-        const objectives = (ch[3] as string[]) || [];
-        const keyPoints = (ch[4] as string[]) || [];
-        const definitions = ((ch[5] as [string, string][]) || []).map((d) => ({ term: d[0], definition: d[1] }));
-        const examples = ((ch[6] as [string, string][]) || []).map((e) => ({ question: e[0], solution: e[1] }));
-        const practice = ((ch[7] as [string, string][]) || []).map((p) => ({ q: p[0], a: p[1] }));
-        const revision = (ch[8] as string) || null;
+        const no = ch.no;
+        const title = ch.title;
 
-        const [chapterRow] = await db
-          .insert(chapters)
-          .values({
-            classId: classRow.id,
-            subjectId: subjectRow.id,
-            title,
-            chapterNo: no,
-            summary: intro,
-            status: "published",
-            orderIndex: chIdx,
-          })
-          .returning();
+        const existingChapter = (
+          await db
+            .select()
+            .from(chapters)
+            .where(
+              sql`${chapters.classId} = ${classRow.id} AND ${chapters.subjectId} = ${subjectRow.id} AND lower(${chapters.title}) = ${title.toLowerCase()}`,
+            )
+            .limit(1)
+        )[0];
+
+        let chapterRow;
+        if (existingChapter) {
+          chapterRow = existingChapter;
+        } else {
+          [chapterRow] = await db
+            .insert(chapters)
+            .values({
+              classId: classRow.id,
+              subjectId: subjectRow.id,
+              title,
+              chapterNo: no,
+              summary: null,
+              status: "published",
+              orderIndex: chIdx,
+            })
+            .returning();
+          chapterCount += 1;
+        }
 
         const existingContent = await db.query.chapterContent.findFirst({
           where: eq(chapterContent.chapterId, chapterRow.id),
@@ -318,37 +330,37 @@ async function seedCurriculum(db: any) {
         if (!existingContent) {
           await db.insert(chapterContent).values({
             chapterId: chapterRow.id,
-            intro,
-            objectives,
-            keyPoints,
-            definitions,
-            examples,
-            practiceQuestions: practice,
-            revision,
+            intro: null,
+            objectives: [],
+            keyPoints: [],
+            definitions: [],
+            examples: [],
+            practiceQuestions: [],
+            revision: null,
             body: null,
           });
         }
 
-        const matTitle = `${title} — Study Notes (${cls.name})`;
         const existingMat = await db.query.studyMaterials.findFirst({
           where: eq(studyMaterials.chapterId, chapterRow.id),
         });
         if (!existingMat) {
+          const matTitle = `${title} — Study Notes (${cls.name})`;
           const pdfBuffer = await generateChapterPdf({
             className: cls.name,
             subjectName: subj.name,
             chapterNo: no,
             chapterTitle: title,
-            intro,
-            objectives,
-            keyPoints,
-            definitions,
-            examples,
-            practiceQuestions: practice,
-            revision,
+            intro: null,
+            objectives: [],
+            keyPoints: [],
+            definitions: [],
+            examples: [],
+            practiceQuestions: [],
+            revision: null,
             body: null,
           });
-          const meta = fileStorage.validateAndStore(
+          const meta = await fileStorage.validateAndStore(
             pdfBuffer,
             `${slugify(cls.name)}_${slugify(subj.name)}_ch${no}.pdf`,
             "application/pdf",
@@ -364,13 +376,12 @@ async function seedCurriculum(db: any) {
           });
           pdfCount += 1;
         }
-        chapterCount += 1;
       }
     }
   }
 
   console.log(
-    `✓ Curriculum seeded: ${classIdx} classes, ${chapterCount} chapters, ${pdfCount} generated PDFs.`,
+    `✓ Curriculum seeded: ${classCount} new classes, ${subjectCount} new subjects, ${chapterCount} new chapters, ${pdfCount} generated PDFs.`,
   );
 }
 
