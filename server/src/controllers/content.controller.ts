@@ -8,6 +8,7 @@ import {
   chapters,
   chapterContent,
   studyMaterials,
+  files,
 } from "../db/schema";
 import { fileStorage } from "../utils/storage";
 import { fileUrl } from "../utils/helpers";
@@ -45,6 +46,7 @@ async function serializeChapter(chapterId: string) {
     studyMaterials: mats.map((m) => ({
       ...m,
       fileUrl: m.fileId ? fileUrl(m.fileId) : null,
+      thumbnailUrl: m.thumbnailFileId ? fileUrl(m.thumbnailFileId) : null,
     })),
   };
 }
@@ -237,30 +239,91 @@ export async function createMaterial(req: Request, res: Response) {
   const db = getDb();
   const chapterId = String(req.params.id);
   const file = (req as any).file as Express.Multer.File | undefined;
-  const { type, title, description } = req.body as any;
-  if (!file) throw ApiError.badRequest("PDF file required");
-  const meta = await fileStorage.validateAndStore(file.buffer, file.originalname, file.mimetype);
+  const {
+    type,
+    title,
+    description,
+    videoSource,
+    url,
+    durationSeconds,
+    status,
+    downloadAllowed,
+    thumbnailFileId,
+  } = req.body as any;
+  const t = (type || "pdf") as string;
+  const finalTitle = (title || file?.originalname || "Material").toString().slice(0, 255);
+
+  if (t === "link" && !url) throw ApiError.badRequest("URL is required for a link material");
+  if (t === "video" && videoSource === "url" && !url)
+    throw ApiError.badRequest("Video URL is required");
+  const needsFile = t === "pdf" || (t === "video" && videoSource !== "url");
+  if (needsFile && !file) throw ApiError.badRequest("File upload is required for this material type");
+
+  let fileId: string | null = null;
+  if (file) {
+    const meta = await fileStorage.validateAndStore(file.buffer, file.originalname, file.mimetype);
+    const [fr] = (await db
+      .insert(files)
+      .values({
+        originalName: meta.originalName,
+        storedName: meta.storedName,
+        mimeType: meta.mimeType,
+        ext: meta.ext,
+        sizeBytes: meta.sizeBytes,
+        kind: meta.kind,
+        uploadedBy: (req as any).user?.id,
+      })
+      .returning()) as any[];
+    fileId = fr.id;
+  }
+
   const [row] = await db
     .insert(studyMaterials)
     .values({
       chapterId,
-      type: type || "pdf",
-      title: title || file.originalname,
+      type: t,
+      title: finalTitle,
       description: description || null,
-      fileId: meta.id,
-    })
+      fileId,
+      videoSource: t === "video" ? videoSource || (fileId ? "upload" : "url") : null,
+      url: url || null,
+      thumbnailFileId: thumbnailFileId || null,
+      durationSeconds: durationSeconds ? Number(durationSeconds) : null,
+      status: status || "published",
+      downloadAllowed:
+        downloadAllowed === undefined ? true : downloadAllowed === "true" || downloadAllowed === true,
+      createdBy: (req as any).user?.id || null,
+    } as any)
     .returning();
-  res.status(201).json({ material: { ...row, fileUrl: fileUrl(meta.id) } });
+
+  res.status(201).json({
+    material: {
+      ...row,
+      fileUrl: fileId ? fileUrl(fileId) : null,
+      thumbnailUrl: row.thumbnailFileId ? fileUrl(row.thumbnailFileId) : null,
+    },
+  });
 }
 
 export async function updateMaterial(req: Request, res: Response) {
   const db = getDb();
+  const body: any = { ...(req.body as any) };
+  if (body.downloadAllowed !== undefined)
+    body.downloadAllowed = body.downloadAllowed === "true" || body.downloadAllowed === true;
+  if (body.durationSeconds !== undefined)
+    body.durationSeconds = body.durationSeconds ? Number(body.durationSeconds) : null;
   const [row] = await db
     .update(studyMaterials)
-    .set(req.body as any)
+    .set(body)
     .where(eq(studyMaterials.id, String(req.params.materialId)))
     .returning();
-  res.json({ material: row });
+  res.json({
+    material: {
+      ...row,
+      fileUrl: row.fileId ? fileUrl(row.fileId) : null,
+      thumbnailUrl: row.thumbnailFileId ? fileUrl(row.thumbnailFileId) : null,
+    },
+  });
 }
 
 export async function deleteMaterial(req: Request, res: Response) {

@@ -29,6 +29,15 @@ export const config = {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean),
   maxUploadMb: num("MAX_UPLOAD_MB", 25),
+  maxMaterialMb: num("MAX_MATERIAL_MB", 300),
+  storageProvider: env("STORAGE_PROVIDER", "local"),
+  s3: {
+    bucket: env("S3_BUCKET", ""),
+    region: env("S3_REGION", "us-east-1"),
+    accessKeyId: env("S3_ACCESS_KEY_ID", ""),
+    secretAccessKey: env("S3_SECRET_ACCESS_KEY", ""),
+    endpoint: env("S3_ENDPOINT", ""),
+  },
   clientDist: env("CLIENT_DIST", "") || path.resolve(process.cwd(), "client", "dist"),
   trustProxy: env("TRUST_PROXY", "1") === "1",
   devReturnResetToken: env("DEV_RETURN_RESET_TOKEN", "true") === "true",

@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { db } from "../db";
+import { classes, classSubjects, subjects, chapters, chapterContent, studyMaterials, files } from "../db/schema";
+import { eq, and, asc } from "drizzle-orm";
 
 export const emailSchema = z.string().email("Enter a valid email");
 export const passwordSchema = z
@@ -268,3 +271,233 @@ export const dailyReviewSchema = z.object({
     )
     .optional(),
 });
+
+// ===== Curriculum Validation =====
+
+export interface CurriculumValidationResult {
+  overall: ValidationStatus;
+  classes: ClassValidation[];
+  subjects: SubjectValidation[];
+  chapters: ChapterValidation[];
+  materials: MaterialValidation[];
+  report: string[];
+}
+
+export interface ClassValidation {
+  className: string;
+  exists: boolean;
+  subjectCount: number;
+  expectedSubjectCount: number;
+  status: ValidationStatus;
+  issues: string[];
+}
+
+export interface SubjectValidation {
+  subjectName: string;
+  className: string;
+  exists: boolean;
+  chapterCount: number;
+  expectedChapterCount: number;
+  status: ValidationStatus;
+  issues: string[];
+}
+
+export interface ChapterValidation {
+  className: string;
+  subjectName: string;
+  chapterTitle: string;
+  exists: boolean;
+  chapterNo: number;
+  status: ValidationStatus;
+  issues: string[];
+}
+
+export interface MaterialValidation {
+  className: string;
+  subjectName: string;
+  chapterTitle: string;
+  materialType: string;
+  exists: boolean;
+  validFileRef: boolean;
+  status: ValidationStatus;
+  issues: string[];
+}
+
+export const enum ValidationStatus { PASS = 'PASS', FAIL = 'FAIL' };
+
+export async function validateCurriculum(db: any): Promise<CurriculumValidationResult> {
+  const report: string[] = [];
+  const results: CurriculumValidationResult = {
+    overall: 'PASS' as const,
+    classes: [],
+    subjects: [],
+    chapters: [],
+    materials: [],
+    report: [],
+  };
+
+  // 1. Validate all classes LKG-12 exist
+  const allClasses = await db.select().from(classes).where(eq(classes.status, 'active'));
+  const classMap = new Map<string, any>();
+  for (const cls of allClasses) {
+    classMap.set(cls.name.toLowerCase(), cls);
+  }
+
+  const requiredClasses = ['LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+
+  for (const clsName of requiredClasses) {
+    const cls = classMap.get(clsName.toLowerCase());
+    const subjects = await db.select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
+
+    const expectedSubjects = getExpectedSubjects(clsName);
+    const subjectOk = subjects.length === expectedSubjects;
+    const issues: string[] = [];
+    if (!subjectOk) issues.push(`Expected ${expectedSubjects} subjects, got ${subjects.length}`);
+
+    // Check chapter counts per subject
+    for (const sub of subjects) {
+      const chapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
+      if (chapters.length === 0) issues.push(`No chapters for ${sub.name}`);
+    }
+
+    const classVal: ClassValidation = {
+      className: clsName,
+      exists: cls !== undefined,
+      subjectCount: subjects.length,
+      expectedSubjectCount: expectedSubjects,
+      status: subjectOk ? 'PASS' : 'FAIL',
+      issues,
+    };
+    results.classes.push(classVal);
+    if (!subjectOk || issues.length > 0) report.push(`CLASS ${clsName}: ${issues.join('; ')}`);
+  }
+
+  // 2. Validate subjects and chapters
+  for (const clsName of requiredClasses) {
+    const cls = classMap.get(clsName.toLowerCase());
+    const subjects = await db.select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
+
+    for (const sub of subjects) {
+      const chapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
+
+      for (const ch of chapters) {
+        const content = await db.query.chapterContent.findFirst({
+          where: eq(chapterContent.chapterId, ch.id),
+        });
+        const mats = await db.select().from(studyMaterials).where(eq(studyMaterials.chapterId, ch.id));
+
+        const hasContent = content !== null;
+        const hasMaterials = mats.length > 0;
+        const chapterNoValid = ch.chapterNo > 0;
+
+        const issues: string[] = [];
+        if (!hasContent) issues.push('Missing chapter content');
+        if (!hasMaterials) issues.push('No study materials for this chapter');
+        if (!chapterNoValid) issues.push('Invalid chapter number');
+
+        const subjVal: SubjectValidation = {
+          subjectName: sub.name,
+          className: clsName,
+          exists: true,
+          chapterCount: chapters.length,
+          expectedChapterCount: getExpectedChapters(clsName, sub.name),
+          status: (hasContent && hasMaterials && chapterNoValid) ? 'PASS' : 'FAIL',
+          issues,
+        };
+        results.subjects.push(subjVal);
+
+        for (const ch of chapters) {
+          const chMats = await db.select().from(studyMaterials).where(eq(studyMaterials.chapterId, ch.id));
+          const chContent = await db.query.chapterContent.findFirst({
+            where: eq(chapterContent.chapterId, ch.id),
+          });
+          const chVal: ChapterValidation = {
+            className: clsName,
+            subjectName: sub.name,
+            chapterTitle: ch.title,
+            exists: true,
+            chapterNo: ch.chapterNo,
+            status: (chContent && chMats.length > 0) ? 'PASS' : 'FAIL',
+            issues: [],
+          };
+          results.chapters.push(chVal);
+          if (chVal.status === 'FAIL') {
+            report.push(`CHAPTER ${clsName} → ${sub.name} → ${ch.title}: ${chVal.issues.join(', ')}`);
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Validate materials
+  const allMats = await db.select().from(studyMaterials);
+  for (const mat of allMats) {
+    const ch = await db.query.chapters.findFirst({ where: eq(chapters.id, mat.chapterId!) });
+    const sub = await db.query.subjects.findFirst({ where: eq(subjects.id, ch!.subjectId) });
+    const cls = await db.query.classes.findFirst({ where: eq(classes.id, ch!.classId) });
+
+    const file = mat.fileId ? await db.query.files.findFirst({ where: eq(files.id, mat.fileId) }) : null;
+
+    const issues: string[] = [];
+    if (!ch) issues.push('Chapter not found');
+    if (!sub) issues.push('Subject not found');
+    if (!cls) issues.push('Class not found');
+    if (mat.fileId && !file) issues.push('Invalid file reference');
+    if (!mat.title) issues.push('Missing material title');
+
+    const matVal: MaterialValidation = {
+      className: cls?.name || 'Unknown',
+      subjectName: sub?.name || 'Unknown',
+      chapterTitle: ch?.title || 'Unknown',
+      materialType: mat.type,
+      exists: true,
+      validFileRef: mat.fileId ? !!file : true,
+      status: (ch && sub && cls && (mat.fileId ? !!file : true) && mat.title) ? 'PASS' : 'FAIL',
+      issues,
+    };
+    results.materials.push(matVal);
+    if (matVal.status === 'FAIL') {
+      report.push(`MATERIAL ${cls?.name} → ${sub?.name} → ${ch?.title} (${mat.type}): ${matVal.issues.join(', ')}`);
+    }
+  }
+
+  // 4. Overall status
+  const allPass =
+    results.classes.every(c => c.status === 'PASS') &&
+    results.subjects.every(s => s.status === 'PASS') &&
+    results.chapters.every(ch => ch.status === 'PASS') &&
+    results.materials.every(m => m.status === 'PASS');
+
+  results.overall = allPass ? 'PASS' : 'FAIL';
+
+  return results;
+}
+
+function getExpectedSubjects(className: string): number {
+  const map: Record<string, number> = {
+    LKG: 3, UKG: 3, 1: 4, 2: 4, 3: 4, 4: 4, 5: 4,
+    6: 6, 7: 6, 8: 6, 9: 6, 10: 6,
+    11: 9, 12: 9,
+  };
+  return map[className] || 0;
+}
+
+function getExpectedChapters(className: string, subjectName: string): number {
+  const map: Record<string, Record<string, number>> = {
+    LKG: { 'English (Foundational)': 5, 'Hindi (Foundational)': 6, 'Mathematics (Foundational)': 6, 'General Awareness / EVS': 6 },
+    UKG: { 'English (Foundational)': 5, 'Hindi (Foundational)': 6, 'Mathematics (Foundational)': 6 },
+    1: { English: 7, Hindi: 7, Mathematics: 11, EVS: 7 },
+    2: { English: 6, Hindi: 6, Mathematics: 12, EVS: 7 },
+    3: { English: 6, Hindi: 6, Mathematics: 14, EVS: 10 },
+    4: { English: 6, Hindi: 6, Mathematics: 14, EVS: 10 },
+    5: { English: 6, Hindi: 6, Mathematics: 13, EVS: 11 },
+    6: { English: 10, Hindi: 7, Mathematics: 14, Science: 16, SocialScience: 16, Sanskrit: 6 },
+    7: { English: 8, Hindi: 6, Mathematics: 18, Science: 18, SocialScience: 18, Sanskrit: 6 },
+    8: { English: 10, Hindi: 6, Mathematics: 16, Science: 18, SocialScience: 16, Sanskrit: 6 },
+    9: { English: 10, Hindi: 6, Mathematics: 15, Science: 15, SocialScience: 15, Sanskrit: 6 },
+    10: { English: 11, Hindi: 6, Mathematics: 14, Science: 16, SocialScience: 16, Sanskrit: 6 },
+    11: { 'English Core': 8, Mathematics: 16, Physics: 15, Chemistry: 14, Biology: 14, ComputerScience: 8, Accountancy: 8, BusinessStudies: 8, Economics: 10, PoliticalScience: 8, History: 8, Geography: 8, Sanskrit: 6 },
+    12: { 'English Core': 8, Mathematics: 13, Physics: 15, Chemistry: 16, Biology: 16, ComputerScience: 8, Accountancy: 8, BusinessStudies: 8, Economics: 12, PoliticalScience: 8, History: 8, Geography: 8, Sanskrit: 6 },
+  };
+  return map[className]?.[subjectName] || 0;
+}

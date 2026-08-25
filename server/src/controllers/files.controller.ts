@@ -14,10 +14,15 @@ export const uploadMiddleware = multer({
   limits: { fileSize: config.maxUploadMb * 1024 * 1024 },
 });
 
+export const materialUploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: config.maxMaterialMb * 1024 * 1024 },
+});
+
 export async function uploadFile(req: Request, res: Response) {
   const f = (req as any).file;
   if (!f) throw ApiError.badRequest("No file provided");
-  const meta = fileStorage.validateAndStore(f.buffer, f.originalname, f.mimetype);
+  const meta = await fileStorage.validateAndStore(f.buffer, f.originalname, f.mimetype);
   const [row] = (await getDb()
     .insert(files)
     .values({
@@ -43,7 +48,11 @@ export async function uploadFile(req: Request, res: Response) {
 }
 
 async function streamStored(res: Response, storedName: string, req: Request) {
-  const abs = fileStorage.pathOf(storedName);
+  const target = await fileStorage.serveTarget(storedName);
+  if (target.kind === "redirect") {
+    return res.redirect(target.url);
+  }
+  const abs = target.path;
   if (!fs.existsSync(abs)) throw ApiError.notFound("File not found");
   const [row] = (await getDb().select().from(files).where(eq(files.storedName, storedName)).limit(1)) as any[];
   const mime = row?.mimeType || "application/octet-stream";

@@ -19,7 +19,18 @@ import {
   Download,
   Upload,
   X,
+  Play,
+  Link as LinkIcon,
 } from "lucide-react";
+import { FileUpload } from "@/components/ui/FileUpload";
+import { VideoPlayerModal } from "@/components/VideoPlayerModal";
+
+function fmtDur(s?: number | null): string | null {
+  if (!s) return null;
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
 import type {
   ClassItem,
   SubjectRef,
@@ -44,6 +55,7 @@ export default function AdminCurriculum() {
   const [chapterModal, setChapterModal] = useState<{ open: boolean; edit?: ChapterRef | null }>({ open: false });
   const [materialModal, setMaterialModal] = useState<{ open: boolean; edit?: ChapterMaterial | null }>({ open: false });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewMat, setPreviewMat] = useState<ChapterMaterial | null>(null);
 
   const classesQ = useQuery({ queryKey: ["admin-classes"], queryFn: () => contentApi.listClasses() });
   const subjectsAllQ = useQuery({ queryKey: ["admin-subjects"], queryFn: () => contentApi.listSubjects() });
@@ -237,6 +249,7 @@ export default function AdminCurriculum() {
             }
           }}
           onPreview={(url) => setPreviewUrl(resolveFileUrl(url))}
+          onPlay={(m) => setPreviewMat(m)}
         />
       )}
 
@@ -283,6 +296,8 @@ export default function AdminCurriculum() {
           </div>
         </Modal>
       )}
+
+      <VideoPlayerModal material={previewMat} onClose={() => setPreviewMat(null)} />
     </div>
   );
 }
@@ -354,6 +369,7 @@ function MaterialsCard({
   onDelete,
   onToggleStatus,
   onPreview,
+  onPlay,
 }: {
   chapter?: ChapterDetail;
   loading: boolean;
@@ -362,6 +378,7 @@ function MaterialsCard({
   onDelete: (mId: string) => void;
   onToggleStatus: (m: ChapterMaterial) => void;
   onPreview: (url: string) => void;
+  onPlay: (m: ChapterMaterial) => void;
 }) {
   if (loading) return <LoadingScreen />;
   const mats = chapter?.studyMaterials ?? [];
@@ -380,20 +397,44 @@ function MaterialsCard({
         {mats.length === 0 && <EmptyState icon={<FileText className="w-6 h-6" />} title="No study materials yet" />}
         {mats.map((m) => (
           <div key={m.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
-            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
-              <FileText className="w-5 h-5" />
-            </div>
+            {m.thumbnailUrl ? (
+              <img src={resolveFileUrl(m.thumbnailUrl)} alt="" className="w-12 h-12 rounded-xl object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
+                {m.type === "video" ? (
+                  <Play className="w-5 h-5" />
+                ) : m.type === "link" ? (
+                  <LinkIcon className="w-5 h-5" />
+                ) : (
+                  <FileText className="w-5 h-5" />
+                )}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-slate-800 truncate">{m.title}</p>
               {m.description && <p className="text-xs text-slate-500 line-clamp-1">{m.description}</p>}
               <div className="flex items-center gap-1.5 mt-1">
                 <Badge tone="brand">{m.type}</Badge>
+                {m.type === "video" && <Badge tone="sky">{m.videoSource || "upload"}</Badge>}
+                {m.durationSeconds ? <Badge tone="slate">{fmtDur(m.durationSeconds)}</Badge> : null}
                 <Badge tone={m.status === "published" ? "emerald" : m.status === "draft" ? "amber" : "slate"}>{m.status}</Badge>
                 {!m.downloadAllowed && <Badge tone="slate">no download</Badge>}
               </div>
             </div>
             <div className="flex gap-1">
-              {m.fileUrl && (
+              {m.type === "video" && (
+                <Button size="sm" variant="outline" onClick={() => onPlay(m)}>
+                  <Play className="w-3.5 h-3.5" /> Watch
+                </Button>
+              )}
+              {m.type === "link" && m.url && (
+                <a href={m.url} target="_blank" rel="noreferrer">
+                  <Button size="sm" variant="outline">
+                    <LinkIcon className="w-3.5 h-3.5" /> Open
+                  </Button>
+                </a>
+              )}
+              {m.fileUrl && m.type !== "video" && (
                 <>
                   <Button size="sm" variant="outline" onClick={() => onPreview(m.fileUrl!)}>
                     <Eye className="w-3.5 h-3.5" /> View
@@ -630,10 +671,19 @@ function MaterialModal({
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState(edit?.title ?? "");
   const [description, setDescription] = useState(edit?.description ?? "");
-  const [type, setType] = useState(edit?.type ?? "pdf");
+  const [type, setType] = useState<"pdf" | "video" | "link">(
+    edit?.type === "video" || edit?.type === "link" ? (edit.type as any) : "pdf"
+  );
+  const [videoSource, setVideoSource] = useState<"upload" | "url">(edit?.videoSource || "upload");
+  const [url, setUrl] = useState(edit?.url ?? "");
+  const [thumbnailFileId, setThumbnailFileId] = useState<string | null>(edit?.thumbnailFileId ?? null);
+  const [duration, setDuration] = useState(edit?.durationSeconds ? String(edit.durationSeconds) : "");
   const [downloadAllowed, setDownloadAllowed] = useState(edit?.downloadAllowed ?? true);
   const [status, setStatus] = useState<ChapterMaterial["status"]>(edit?.status ?? "published");
   const [saving, setSaving] = useState(false);
+
+  const needsFile = type === "pdf" || (type === "video" && videoSource === "upload");
+  const showUrl = type === "link" || (type === "video" && videoSource === "url");
 
   async function save() {
     setSaving(true);
@@ -643,18 +693,25 @@ function MaterialModal({
           title: title.trim(),
           description,
           type,
+          videoSource: type === "video" ? videoSource : undefined,
+          url: showUrl ? url : undefined,
+          thumbnailFileId: thumbnailFileId ?? undefined,
+          durationSeconds: duration ? Number(duration) : undefined,
           downloadAllowed,
           status,
         });
         toast("Material updated", "success");
       } else {
-        if (!file) return toast("Upload a PDF file", "error");
-        if (!title.trim()) setTitle(file.name);
+        if (!edit && needsFile && !file) return toast(`Upload a ${type === "pdf" ? "PDF" : "video"} file`, "error");
         const form = new FormData();
-        form.append("file", file);
-        form.append("title", title.trim() || file.name);
+        if (file) form.append("file", file);
+        form.append("title", title.trim() || file?.name || "Material");
         form.append("description", description);
         form.append("type", type);
+        if (type === "video") form.append("videoSource", videoSource);
+        if (showUrl) form.append("url", url);
+        if (thumbnailFileId) form.append("thumbnailFileId", thumbnailFileId);
+        if (duration) form.append("durationSeconds", duration);
         form.append("downloadAllowed", String(downloadAllowed));
         form.append("status", status);
         await adminContentApi.createMaterial(chapterId, form);
@@ -669,44 +726,82 @@ function MaterialModal({
     }
   }
 
+  const segClass = (active: boolean) =>
+    `rounded-xl border px-3 py-2 text-sm font-medium capitalize ${
+      active ? "border-brand-500 bg-brand-50 text-brand-700" : "border-slate-300 text-slate-600"
+    }`;
+
   return (
     <Modal open onClose={onClose} title={edit ? "Edit Study Material" : "Add Study Material"}>
       <div className="space-y-3">
-        {!edit && (
-          <Field label="PDF file" hint="Upload the study material PDF">
+        <Field label="Type">
+          <div className="grid grid-cols-3 gap-2">
+            {(["pdf", "video", "link"] as const).map((t) => (
+              <button key={t} type="button" onClick={() => setType(t)} className={segClass(type === t)}>
+                {t === "pdf" ? "PDF" : t === "video" ? "Video" : "Link"}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        {type === "video" && !edit && (
+          <Field label="Video source">
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setVideoSource("upload")} className={segClass(videoSource === "upload")}>
+                Upload file
+              </button>
+              <button type="button" onClick={() => setVideoSource("url")} className={segClass(videoSource === "url")}>
+                External URL
+              </button>
+            </div>
+          </Field>
+        )}
+
+        {needsFile ? (
+          <Field label={type === "pdf" ? "PDF file" : "Video file"} hint={type === "pdf" ? "Upload the study material PDF" : "MP4 or other video file"}>
             <input
               type="file"
-              accept="application/pdf"
+              accept={type === "pdf" ? "application/pdf" : "video/*"}
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
             />
           </Field>
+        ) : (
+          <Field label={type === "link" ? "URL" : "Video URL"} hint={type === "link" ? "External link to open" : "YouTube or direct video URL"}>
+            <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={type === "link" ? "https://example.com" : "https://youtube.com/watch?v=..."} />
+          </Field>
         )}
-        {edit && (
-          <p className="text-xs text-slate-400">PDF file cannot be replaced here. Delete and re-add to change the file.</p>
+
+        {type === "video" && (
+          <Field label="Thumbnail (optional)">
+            <FileUpload
+              label="Upload thumbnail"
+              accept="image/*"
+              value={thumbnailFileId ? { id: thumbnailFileId, originalName: "thumbnail" } : null}
+              onChange={(f) => setThumbnailFileId(f ? f.id : null)}
+            />
+          </Field>
         )}
+
+        {type === "video" && (
+          <Field label="Duration (seconds)">
+            <Input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} placeholder="e.g. 300" />
+          </Field>
+        )}
+
         <Field label="Title">
           <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Material title" />
         </Field>
         <Field label="Description">
           <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Optional description" />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Type">
-            <Select value={type} onChange={(e) => setType(e.target.value)}>
-              {MATERIAL_TYPES.map((t) => (
-                <option key={t} value={t} className="capitalize">{t}</option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Status">
-            <Select value={status} onChange={(e) => setStatus(e.target.value as ChapterMaterial["status"])}>
-              {MATERIAL_STATUSES.map((s) => (
-                <option key={s} value={s} className="capitalize">{s}</option>
-              ))}
-            </Select>
-          </Field>
-        </div>
+        <Field label="Status">
+          <Select value={status} onChange={(e) => setStatus(e.target.value as ChapterMaterial["status"])}>
+            {MATERIAL_STATUSES.map((s) => (
+              <option key={s} value={s} className="capitalize">{s}</option>
+            ))}
+          </Select>
+        </Field>
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input type="checkbox" checked={downloadAllowed} onChange={(e) => setDownloadAllowed(e.target.checked)} /> Allow download
         </label>

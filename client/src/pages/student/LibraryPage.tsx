@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { VideoPlayerModal } from "@/components/VideoPlayerModal";
 import { Badge, LoadingScreen, ErrorState, EmptyState } from "@/components/ui/misc";
 import {
   ChevronLeft,
@@ -21,15 +22,25 @@ import {
   KeyRound,
   Lightbulb,
   PencilRuler,
+  Play,
+  Link as LinkIcon,
 } from "lucide-react";
 import type {
   SubjectRef,
   ChapterRef,
   ChapterDetail,
+  ChapterMaterial,
   MyClassResponse,
 } from "@/lib/types";
 
 type View = "subjects" | "chapters" | "chapter";
+
+function fmtDur(s?: number | null): string | null {
+  if (!s) return null;
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, "0")}`;
+}
 
 export default function StudentLibrary() {
   const { user } = useAuth();
@@ -37,6 +48,7 @@ export default function StudentLibrary() {
   const [subject, setSubject] = useState<SubjectRef | null>(null);
   const [chapter, setChapter] = useState<ChapterRef | null>(null);
   const [pdf, setPdf] = useState<string | null>(null);
+  const [videoMat, setVideoMat] = useState<ChapterMaterial | null>(null);
 
   const myClass = useQuery<MyClassResponse>({
     queryKey: ["my-class"],
@@ -169,6 +181,7 @@ export default function StudentLibrary() {
           data={chapterQ.data?.chapter}
           loading={chapterQ.isLoading}
           onViewPdf={(url) => setPdf(resolveFileUrl(url))}
+          onPlay={(m) => setVideoMat(m)}
         />
       )}
 
@@ -184,6 +197,8 @@ export default function StudentLibrary() {
           </div>
         </Modal>
       )}
+
+      <VideoPlayerModal material={videoMat} onClose={() => setVideoMat(null)} />
     </div>
   );
 }
@@ -192,10 +207,12 @@ function ChapterView({
   data,
   loading,
   onViewPdf,
+  onPlay,
 }: {
   data?: ChapterDetail;
   loading: boolean;
   onViewPdf: (url: string) => void;
+  onPlay: (m: ChapterMaterial) => void;
 }) {
   if (loading) return <LoadingScreen />;
   if (!data) return <ErrorState message="Could not load chapter" />;
@@ -281,22 +298,48 @@ function ChapterView({
             <EmptyState icon={<FileText className="w-6 h-6" />} title="No study materials yet" />
           </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-2">
+            <div className="grid grid-cols-1 gap-2">
             {data.studyMaterials.map((m) => (
               <Card key={m.id} className="p-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
-                    <FileText className="w-5 h-5" />
-                  </div>
+                  {m.thumbnailUrl ? (
+                    <img src={resolveFileUrl(m.thumbnailUrl)} alt="" className="w-12 h-12 rounded-xl object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
+                      {m.type === "video" ? (
+                        <Play className="w-5 h-5" />
+                      ) : m.type === "link" ? (
+                        <LinkIcon className="w-5 h-5" />
+                      ) : (
+                        <FileText className="w-5 h-5" />
+                      )}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-slate-800 truncate">{m.title}</p>
                     {m.description && (
                       <p className="text-xs text-slate-500 line-clamp-1">{m.description}</p>
                     )}
-                    <Badge tone="brand">{m.type}</Badge>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Badge tone="brand">{m.type}</Badge>
+                      {m.type === "video" && <Badge tone="sky">{m.videoSource || "upload"}</Badge>}
+                      {m.durationSeconds ? <Badge tone="slate">{fmtDur(m.durationSeconds)}</Badge> : null}
+                    </div>
                   </div>
                   <div className="flex gap-1">
-                    {m.fileUrl && (
+                    {m.type === "video" && (
+                      <Button size="sm" variant="outline" onClick={() => onPlay(m)}>
+                        <Play className="w-3.5 h-3.5" /> Watch
+                      </Button>
+                    )}
+                    {m.type === "link" && m.url && (
+                      <a href={m.url} target="_blank" rel="noreferrer">
+                        <Button size="sm" variant="outline">
+                          <LinkIcon className="w-3.5 h-3.5" /> Open
+                        </Button>
+                      </a>
+                    )}
+                    {m.fileUrl && m.type !== "video" && (
                       <>
                         <Button size="sm" variant="outline" onClick={() => onViewPdf(m.fileUrl!)}>
                           <Eye className="w-3.5 h-3.5" /> View

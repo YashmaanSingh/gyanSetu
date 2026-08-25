@@ -197,6 +197,11 @@ export interface ChapterMaterial {
   type: string;
   fileId?: string | null;
   fileUrl?: string | null;
+  videoSource?: "upload" | "url" | null;
+  url?: string | null;
+  thumbnailUrl?: string | null;
+  thumbnailFileId?: string | null;
+  durationSeconds?: number | null;
   downloadAllowed: boolean;
   status: string;
 }

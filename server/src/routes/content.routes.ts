@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as content from "../controllers/content.controller";
-import { uploadMiddleware } from "../controllers/files.controller";
+import { uploadMiddleware, materialUploadMiddleware } from "../controllers/files.controller";
 import { requireAuth, requireAdmin } from "../middleware/auth";
 
 const router = Router();
@@ -38,7 +38,7 @@ router.put("/chapters/:id/content", requireAdmin, content.upsertChapterContent);
 router.post(
   "/chapters/:id/materials",
   requireAdmin,
-  uploadMiddleware.single("file"),
+  materialUploadMiddleware.single("file"),
   content.createMaterial,
 );
 router.put("/materials/:materialId", requireAdmin, content.updateMaterial);

@@ -261,9 +261,65 @@ async function seedCurriculum(db: any) {
       await db.select().from(classes).where(sql`lower(${classes.name}) = ${lowerClass}`).limit(1)
     )[0];
     if (!classRow) {
+      const sourceMap: Record<string, string> = {
+        LKG: 'Foundational / Pre-primary Curriculum',
+        UKG: 'Foundational / Pre-primary Curriculum',
+        1: 'NCERT-aligned / CBSE-school Curriculum',
+        2: 'NCERT-aligned / CBSE-school Curriculum',
+        3: 'NCERT-aligned / CBSE-school Curriculum',
+        4: 'NCERT-aligned / CBSE-school Curriculum',
+        5: 'NCERT-aligned / CBSE-school Curriculum',
+        6: 'NCERT-aligned / CBSE-school Curriculum',
+        7: 'NCERT-aligned / CBSE-school Curriculum',
+        8: 'NCERT-aligned / CBSE-school Curriculum',
+        9: 'CBSE Curriculum 2026–27',
+        10: 'CBSE Curriculum 2026–27',
+        11: 'CBSE Curriculum 2026–27',
+        12: 'CBSE Curriculum 2026–27',
+      };
+      const versionMap: Record<string, string> = {
+        LKG: '',
+        UKG: '',
+        1: '',
+        2: '',
+        3: '',
+        4: '',
+        5: '',
+        6: '',
+        7: '',
+        8: '',
+        9: '2026–27',
+        10: '2026–27',
+        11: '2026–27',
+        12: '2026–27',
+      };
+      const urlMap: Record<string, string> = {
+        LKG: 'https://ncert.nic.in/textbook.php',
+        UKG: 'https://ncert.nic.in/textbook.php',
+        1: 'https://ncert.nic.in/textbook.php',
+        2: 'https://ncert.nic.in/textbook.php',
+        3: 'https://ncert.nic.in/textbook.php',
+        4: 'https://ncert.nic.in/textbook.php',
+        5: 'https://ncert.nic.in/textbook.php',
+        6: 'https://ncert.nic.in/textbook.php',
+        7: 'https://ncert.nic.in/textbook.php',
+        8: 'https://ncert.nic.in/textbook.php',
+        9: 'https://cbseacademic.nic.in/curriculum_2027.html',
+        10: 'https://cbseacademic.nic.in/curriculum_2027.html',
+        11: 'https://cbseacademic.nic.in/curriculum_2027.html',
+        12: 'https://cbseacademic.nic.in/curriculum_2027.html',
+      };
       [classRow] = await db
         .insert(classes)
-        .values({ name: cls.name, slug: cls.slug, orderIndex: 0, description: cls.description || null })
+        .values({
+          name: cls.name,
+          slug: cls.slug,
+          orderIndex: 0,
+          description: cls.description || null,
+          curriculumSource: sourceMap[cls.name] || '',
+          curriculumVersion: versionMap[cls.name] || '',
+          officialSourceUrl: urlMap[cls.name] || '',
+        })
         .returning();
       classCount += 1;
     }

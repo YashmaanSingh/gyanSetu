@@ -95,6 +95,16 @@ export const api = {
   del: <T = any>(p: string) => apiFetch<T>(p, { method: "DELETE" }),
   upload: <T = any>(p: string, form: FormData) =>
     apiFetch<T>(p, { method: "POST", body: form }),
+  blob: async (p: string): Promise<string> => {
+    const url = p.startsWith("http") ? p : `${API_URL}${p}`;
+    const headers = new Headers();
+    if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+    const res = await fetch(url, { method: "GET", headers, credentials: "include" });
+    if (!res.ok) throw new Error(`Failed to load file (${res.status})`);
+    const ct = res.headers.get("content-type") || "";
+    const blob = await res.blob();
+    return URL.createObjectURL(new Blob([blob], { type: ct || "application/octet-stream" }));
+  },
 };
 
 export const contentApi = {

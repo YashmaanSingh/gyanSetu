@@ -24,9 +24,11 @@ export interface CurriculumClass {
   subjects: CurriculumSubject[];
 }
 
-const S = (name: string, slug: string, chapters: [string, number?][]): CurriculumSubject => ({
+const S = (name: string, slug: string, stream?: string, category?: string, chapters: [string, number?][]): CurriculumSubject => ({
   name,
   slug,
+  stream,
+  category,
   chapters: chapters.map(([title, no], i) => ({ title, no: no ?? i + 1 })),
 });
 
