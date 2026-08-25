@@ -323,7 +323,7 @@ export interface MaterialValidation {
   issues: string[];
 }
 
-export const enum ValidationStatus { PASS = 'PASS', FAIL = 'FAIL' };
+type ValidationStatus = 'PASS' | 'FAIL';
 
 export async function validateCurriculum(db: any): Promise<CurriculumValidationResult> {
   const report: string[] = [];
@@ -356,8 +356,8 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 
     // Check chapter counts per subject
     for (const sub of subjects) {
-      const chapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
-      if (chapters.length === 0) issues.push(`No chapters for ${sub.name}`);
+      const foundChapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
+      if (foundChapters.length === 0) issues.push(`No chapters for ${sub.name}`);
     }
 
     const classVal: ClassValidation = {
@@ -378,9 +378,9 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
     const subjects = await db.select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
 
     for (const sub of subjects) {
-      const chapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
+      const foundChapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
 
-      for (const ch of chapters) {
+      for (const ch of foundChapters) {
         const content = await db.query.chapterContent.findFirst({
           where: eq(chapterContent.chapterId, ch.id),
         });
@@ -399,14 +399,14 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
           subjectName: sub.name,
           className: clsName,
           exists: true,
-          chapterCount: chapters.length,
+          chapterCount: foundChapters.length,
           expectedChapterCount: getExpectedChapters(clsName, sub.name),
           status: (hasContent && hasMaterials && chapterNoValid) ? 'PASS' : 'FAIL',
           issues,
         };
         results.subjects.push(subjVal);
 
-        for (const ch of chapters) {
+        for (const ch of foundChapters) {
           const chMats = await db.select().from(studyMaterials).where(eq(studyMaterials.chapterId, ch.id));
           const chContent = await db.query.chapterContent.findFirst({
             where: eq(chapterContent.chapterId, ch.id),
