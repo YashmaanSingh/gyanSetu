@@ -349,7 +349,6 @@ ${materialValidations.length} materials validated.
     report.summary = `Validation failed with error: ${error instanceof Error ? error.message : String(error)}`;
     return report;
   }
-}
 
 // Helper: get expected subject names for a class
 function getExpectedSubjectNames(className: string): string[] {
