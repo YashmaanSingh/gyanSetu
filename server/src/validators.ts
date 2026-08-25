@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { db } from "../db";
-import { classes, classSubjects, subjects, chapters, chapterContent, studyMaterials, files } from "../db/schema";
+import { db } from "./db";
+import { classes, classSubjects, subjects, chapters, chapterContent, studyMaterials, files } from "./db/schema";
 import { eq, and, asc } from "drizzle-orm";
 
 export const emailSchema = z.string().email("Enter a valid email");
@@ -347,15 +347,15 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 
   for (const clsName of requiredClasses) {
     const cls = classMap.get(clsName.toLowerCase());
-    const subjects = await db.select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
+    const foundSubjects = await db.select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
 
     const expectedSubjects = getExpectedSubjects(clsName);
-    const subjectOk = subjects.length === expectedSubjects;
+    const subjectOk = foundSubjects.length === expectedSubjects;
     const issues: string[] = [];
-    if (!subjectOk) issues.push(`Expected ${expectedSubjects} subjects, got ${subjects.length}`);
+    if (!subjectOk) issues.push(`Expected ${expectedSubjects} subjects, got ${foundSubjects.length}`);
 
     // Check chapter counts per subject
-    for (const sub of subjects) {
+    for (const sub of foundSubjects) {
       const foundChapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
       if (foundChapters.length === 0) issues.push(`No chapters for ${sub.name}`);
     }
@@ -363,7 +363,7 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
     const classVal: ClassValidation = {
       className: clsName,
       exists: cls !== undefined,
-      subjectCount: subjects.length,
+      subjectCount: foundSubjects.length,
       expectedSubjectCount: expectedSubjects,
       status: subjectOk ? 'PASS' : 'FAIL',
       issues,
@@ -372,12 +372,12 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
     if (!subjectOk || issues.length > 0) report.push(`CLASS ${clsName}: ${issues.join('; ')}`);
   }
 
-  // 2. Validate subjects and chapters
+// 2. Validate subjects and chapters
   for (const clsName of requiredClasses) {
     const cls = classMap.get(clsName.toLowerCase());
-    const subjects = await db.select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
+    const foundSubjects = await db.select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
 
-    for (const sub of subjects) {
+    for (const sub of foundSubjects) {
       const foundChapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
 
       for (const ch of foundChapters) {
@@ -399,7 +399,7 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
           subjectName: sub.name,
           className: clsName,
           exists: true,
-          chapterCount: foundChapters.length,
+          chapterCount: foundSubjects.length,
           expectedChapterCount: getExpectedChapters(clsName, sub.name),
           status: (hasContent && hasMaterials && chapterNoValid) ? 'PASS' : 'FAIL',
           issues,
@@ -424,6 +424,10 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
           if (chVal.status === 'FAIL') {
             report.push(`CHAPTER ${clsName} → ${sub.name} → ${ch.title}: ${chVal.issues.join(', ')}`);
           }
+        }
+      }
+    }
+  }
         }
       }
     }
