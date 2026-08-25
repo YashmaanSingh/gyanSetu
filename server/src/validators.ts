@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { db } from "./db";
+import { getDb } from "./db";
 import { classes, classSubjects, subjects, chapters, chapterContent, studyMaterials, files } from "./db/schema";
 import { eq, and, asc } from "drizzle-orm";
 
@@ -337,7 +337,7 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
   };
 
   // 1. Validate all classes LKG-12 exist
-  const allClasses = await db.select().from(classes).where(eq(classes.status, 'active'));
+  const allClasses = await getDb().select().from(classes).where(eq(classes.status, 'active'));
   const classMap = new Map<string, any>();
   for (const cls of allClasses) {
     classMap.set(cls.name.toLowerCase(), cls);
@@ -347,7 +347,7 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 
   for (const clsName of requiredClasses) {
     const cls = classMap.get(clsName.toLowerCase());
-    const foundSubjects = await db.select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
+    const foundSubjects = await getDb().select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
 
     const expectedSubjects = getExpectedSubjects(clsName);
     const subjectOk = foundSubjects.length === expectedSubjects;
@@ -356,7 +356,7 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 
     // Check chapter counts per subject
     for (const sub of foundSubjects) {
-      const foundChapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
+      const foundChapters = await getDb().select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
       if (foundChapters.length === 0) issues.push(`No chapters for ${sub.name}`);
     }
 
@@ -375,16 +375,16 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 // 2. Validate subjects and chapters
   for (const clsName of requiredClasses) {
     const cls = classMap.get(clsName.toLowerCase());
-    const foundSubjects = await db.select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
+    const foundSubjects = await getDb().select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
 
     for (const sub of foundSubjects) {
-      const foundChapters = await db.select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
+      const foundChapters = await getDb().select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
 
       for (const ch of foundChapters) {
-        const content = await db.query.chapterContent.findFirst({
+        const content = await getDb().query.chapterContent.findFirst({
           where: eq(chapterContent.chapterId, ch.id),
         });
-        const mats = await db.select().from(studyMaterials).where(eq(studyMaterials.chapterId, ch.id));
+        const mats = await getDb().select().from(studyMaterials).where(eq(studyMaterials.chapterId, ch.id));
 
         const hasContent = content !== null;
         const hasMaterials = mats.length > 0;
@@ -407,8 +407,8 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
         results.subjects.push(subjVal);
 
         for (const ch of foundChapters) {
-          const chMats = await db.select().from(studyMaterials).where(eq(studyMaterials.chapterId, ch.id));
-          const chContent = await db.query.chapterContent.findFirst({
+          const chMats = await getDb().select().from(studyMaterials).where(eq(studyMaterials.chapterId, ch.id));
+          const chContent = await getDb().query.chapterContent.findFirst({
             where: eq(chapterContent.chapterId, ch.id),
           });
           const chVal: ChapterValidation = {
@@ -430,13 +430,13 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
   }
 
   // 3. Validate materials
-  const allMats = await db.select().from(studyMaterials);
+  const allMats = await getDb().select().from(studyMaterials);
   for (const mat of allMats) {
-    const ch = await db.query.chapters.findFirst({ where: eq(chapters.id, mat.chapterId!) });
-    const sub = await db.query.subjects.findFirst({ where: eq(subjects.id, ch!.subjectId) });
-    const cls = await db.query.classes.findFirst({ where: eq(classes.id, ch!.classId) });
+    const ch = await getDb().query.chapters.findFirst({ where: eq(chapters.id, mat.chapterId!) });
+    const sub = await getDb().query.subjects.findFirst({ where: eq(subjects.id, ch!.subjectId) });
+    const cls = await getDb().query.classes.findFirst({ where: eq(classes.id, ch!.classId) });
 
-    const file = mat.fileId ? await db.query.files.findFirst({ where: eq(files.id, mat.fileId) }) : null;
+    const file = mat.fileId ? await getDb().query.files.findFirst({ where: eq(files.id, mat.fileId) }) : null;
 
     const issues: string[] = [];
     if (!ch) issues.push('Chapter not found');
