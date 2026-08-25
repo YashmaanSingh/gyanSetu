@@ -428,10 +428,6 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
       }
     }
   }
-        }
-      }
-    }
-  }
 
   // 3. Validate materials
   const allMats = await db.select().from(studyMaterials);
