@@ -338,17 +338,36 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 
   // 1. Validate all classes LKG-12 exist
   const allClasses = await getDb().select().from(classes).where(eq(classes.status, 'active'));
-  const classMap = new Map<string, any>();
+  const classMap = new Map<string, typeof classes.$inferSelect>();
   for (const cls of allClasses) {
     classMap.set(cls.name.toLowerCase(), cls);
   }
 
-  const requiredClasses = ['LKG', 'UKG', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+  const requiredClasses = ['LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
 
   for (const clsName of requiredClasses) {
     const cls = classMap.get(clsName.toLowerCase());
-    // Query subjects for this class directly (no innerJoin)
-    const foundSubjects = await getDb().select().from(subjects).where(eq(subjects.classId, cls!.id)).orderBy(asc(subjects.orderIndex));
+    if (!cls) {
+      const classVal: ClassValidation = {
+        className: clsName,
+        exists: false,
+        subjectCount: 0,
+        expectedSubjectCount: getExpectedSubjects(clsName),
+        status: 'FAIL',
+        issues: [`Class "${clsName}" does not exist`],
+      };
+      results.classes.push(classVal);
+      report.push(`CLASS ${clsName}: Class does not exist in database`);
+      continue;
+    }
+
+    // Query subjects for this class via classSubjects join
+    const foundSubjects = await getDb()
+      .select({ subject: subjects, classSubject: classSubjects })
+      .from(subjects)
+      .innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id))
+      .where(eq(classSubjects.classId, cls.id))
+      .orderBy(asc(classSubjects.orderIndex));
 
     const expectedSubjects = getExpectedSubjects(clsName);
     const subjectOk = foundSubjects.length === expectedSubjects;
@@ -357,30 +376,54 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 
     // Check chapter counts per subject
     for (const sub of foundSubjects) {
-      const foundChapters = await getDb().select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
-      if (foundChapters.length === 0) issues.push(`No chapters for ${sub.name}`);
+      const foundChapters = await getDb()
+        .select()
+        .from(chapters)
+        .where(and(eq(chapters.classId, cls.id), eq(chapters.subjectId, sub.subject.id)))
+        .orderBy(asc(chapters.chapterNo));
+      if (foundChapters.length === 0) issues.push(`No chapters for ${sub.subject.name}`);
     }
 
     const classVal: ClassValidation = {
       className: clsName,
-      exists: cls !== undefined,
+      exists: true,
       subjectCount: foundSubjects.length,
       expectedSubjectCount: expectedSubjects,
-      status: subjectOk ? 'PASS' : 'FAIL',
+      status: subjectOk && issues.length === 0 ? 'PASS' : 'FAIL',
       issues,
     };
     results.classes.push(classVal);
-    if (!subjectOk || issues.length > 0) report.push(`CLASS ${clsName}: ${issues.join('; ')}`);
+    if (classVal.status === 'FAIL') report.push(`CLASS ${clsName}: ${issues.join('; ')}`);
   }
 
-// 2. Validate subjects and chapters
+  // 2. Validate subjects and chapters
   for (const clsName of requiredClasses) {
     const cls = classMap.get(clsName.toLowerCase());
-    // Query subjects for this class directly (no innerJoin)
-    const foundSubjects = await getDb().select().from(subjects).where(eq(subjects.classId, cls!.id)).orderBy(asc(subjects.orderIndex));
+    if (!cls) continue;
+
+    const foundSubjects = await getDb()
+      .select({ subject: subjects, classSubject: classSubjects })
+      .from(subjects)
+      .innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id))
+      .where(eq(classSubjects.classId, cls.id))
+      .orderBy(asc(classSubjects.orderIndex));
 
     for (const sub of foundSubjects) {
-      const foundChapters = await getDb().select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
+      const subjectRow = sub.subject;
+      const foundChapters = await getDb()
+        .select()
+        .from(chapters)
+        .where(and(eq(chapters.classId, cls.id), eq(chapters.subjectId, subjectRow.id)))
+        .orderBy(asc(chapters.chapterNo));
+
+      const expectedChapters = getExpectedChapters(clsName, subjectRow.name);
+      let allChaptersValid = foundChapters.length > 0;
+      const subjectIssues: string[] = [];
+
+      if (foundChapters.length === 0) {
+        subjectIssues.push('No chapters found');
+        allChaptersValid = false;
+      }
 
       for (const ch of foundChapters) {
         const content = await getDb().query.chapterContent.findFirst({
@@ -388,45 +431,43 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
         });
         const mats = await getDb().select().from(studyMaterials).where(eq(studyMaterials.chapterId, ch.id));
 
-        const hasContent = content !== null;
+        const hasContent = content !== undefined && content !== null;
         const hasMaterials = mats.length > 0;
         const chapterNoValid = ch.chapterNo > 0;
 
-        const issues: string[] = [];
-        if (!hasContent) issues.push('Missing chapter content');
-        if (!hasMaterials) issues.push('No study materials for this chapter');
-        if (!chapterNoValid) issues.push('Invalid chapter number');
+        const chIssues: string[] = [];
+        if (!hasContent) chIssues.push('Missing chapter content');
+        if (!hasMaterials) chIssues.push('No study materials for this chapter');
+        if (!chapterNoValid) chIssues.push('Invalid chapter number');
 
-        const subjVal: SubjectValidation = {
-          subjectName: sub.name,
+        const chVal: ChapterValidation = {
           className: clsName,
+          subjectName: subjectRow.name,
+          chapterTitle: ch.title,
           exists: true,
-          chapterCount: foundSubjects.length,
-          expectedChapterCount: getExpectedChapters(clsName, sub.name),
+          chapterNo: ch.chapterNo,
           status: (hasContent && hasMaterials && chapterNoValid) ? 'PASS' : 'FAIL',
-          issues,
+          issues: chIssues,
         };
-        results.subjects.push(subjVal);
-
-        for (const ch of foundChapters) {
-          const chMats = await getDb().select().from(studyMaterials).where(eq(studyMaterials.chapterId, ch.id));
-          const chContent = await getDb().query.chapterContent.findFirst({
-            where: eq(chapterContent.chapterId, ch.id),
-          });
-          const chVal: ChapterValidation = {
-            className: clsName,
-            subjectName: sub.name,
-            chapterTitle: ch.title,
-            exists: true,
-            chapterNo: ch.chapterNo,
-            status: (chContent && chMats.length > 0) ? 'PASS' : 'FAIL',
-            issues: [],
-          };
-          results.chapters.push(chVal);
-          if (chVal.status === 'FAIL') {
-            report.push(`CHAPTER ${clsName} → ${sub.name} → ${ch.title}: ${chVal.issues.join(', ')}`);
-          }
+        results.chapters.push(chVal);
+        if (chVal.status === 'FAIL') {
+          allChaptersValid = false;
+          report.push(`CHAPTER ${clsName} → ${subjectRow.name} → ${ch.title}: ${chIssues.join(', ')}`);
         }
+      }
+
+      const subjVal: SubjectValidation = {
+        subjectName: subjectRow.name,
+        className: clsName,
+        exists: true,
+        chapterCount: foundChapters.length,
+        expectedChapterCount: expectedChapters,
+        status: allChaptersValid ? 'PASS' : 'FAIL',
+        issues: subjectIssues,
+      };
+      results.subjects.push(subjVal);
+      if (subjVal.status === 'FAIL') {
+        report.push(`SUBJECT ${clsName} → ${subjectRow.name}: ${subjectIssues.join(', ')}`);
       }
     }
   }
@@ -477,29 +518,29 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 
 function getExpectedSubjects(className: string): number {
   const map: Record<string, number> = {
-    LKG: 3, UKG: 3, 1: 4, 2: 4, 3: 4, 4: 4, 5: 4,
-    6: 6, 7: 6, 8: 6, 9: 6, 10: 6,
-    11: 9, 12: 9,
+    LKG: 3, UKG: 4, 'Class 1': 4, 'Class 2': 4, 'Class 3': 4, 'Class 4': 4, 'Class 5': 4,
+    'Class 6': 6, 'Class 7': 6, 'Class 8': 6, 'Class 9': 6, 'Class 10': 6,
+    'Class 11': 9, 'Class 12': 9,
   };
   return map[className] || 0;
 }
 
 function getExpectedChapters(className: string, subjectName: string): number {
   const map: Record<string, Record<string, number>> = {
-    LKG: { 'English (Foundational)': 5, 'Hindi (Foundational)': 6, 'Mathematics (Foundational)': 6, 'General Awareness / EVS': 6 },
-    UKG: { 'English (Foundational)': 5, 'Hindi (Foundational)': 6, 'Mathematics (Foundational)': 6 },
-    1: { English: 7, Hindi: 7, Mathematics: 11, EVS: 7 },
-    2: { English: 6, Hindi: 6, Mathematics: 12, EVS: 7 },
-    3: { English: 6, Hindi: 6, Mathematics: 14, EVS: 10 },
-    4: { English: 6, Hindi: 6, Mathematics: 14, EVS: 10 },
-    5: { English: 6, Hindi: 6, Mathematics: 13, EVS: 11 },
-    6: { English: 10, Hindi: 7, Mathematics: 14, Science: 16, SocialScience: 16, Sanskrit: 6 },
-    7: { English: 8, Hindi: 6, Mathematics: 18, Science: 18, SocialScience: 18, Sanskrit: 6 },
-    8: { English: 10, Hindi: 6, Mathematics: 16, Science: 18, SocialScience: 16, Sanskrit: 6 },
-    9: { English: 10, Hindi: 6, Mathematics: 15, Science: 15, SocialScience: 15, Sanskrit: 6 },
-    10: { English: 11, Hindi: 6, Mathematics: 14, Science: 16, SocialScience: 16, Sanskrit: 6 },
-    11: { 'English Core': 8, Mathematics: 16, Physics: 15, Chemistry: 14, Biology: 14, ComputerScience: 8, Accountancy: 8, BusinessStudies: 8, Economics: 10, PoliticalScience: 8, History: 8, Geography: 8, Sanskrit: 6 },
-    12: { 'English Core': 8, Mathematics: 13, Physics: 15, Chemistry: 16, Biology: 16, ComputerScience: 8, Accountancy: 8, BusinessStudies: 8, Economics: 12, PoliticalScience: 8, History: 8, Geography: 8, Sanskrit: 6 },
+    LKG: { 'English (Foundational)': 5, 'Hindi (Foundational)': 6, 'Mathematics (Foundational)': 6 },
+    UKG: { 'English (Foundational)': 6, 'Hindi (Foundational)': 6, 'Mathematics (Foundational)': 6, 'General Awareness / EVS': 6 },
+    'Class 1': { English: 7, Hindi: 7, Mathematics: 11, 'EVS (Environmental Studies)': 7 },
+    'Class 2': { English: 6, Hindi: 6, Mathematics: 12, 'EVS (Environmental Studies)': 7 },
+    'Class 3': { English: 6, Hindi: 6, Mathematics: 14, 'EVS (Environmental Studies)': 10 },
+    'Class 4': { English: 6, Hindi: 6, Mathematics: 14, 'EVS (Environmental Studies)': 10 },
+    'Class 5': { English: 6, Hindi: 6, Mathematics: 13, 'EVS (Environmental Studies)': 11 },
+    'Class 6': { English: 10, Hindi: 7, Mathematics: 14, Science: 16, 'Social Science': 16, Sanskrit: 6 },
+    'Class 7': { English: 8, Hindi: 6, Mathematics: 18, Science: 18, 'Social Science': 18, Sanskrit: 6 },
+    'Class 8': { English: 10, Hindi: 6, Mathematics: 16, Science: 18, 'Social Science': 16, Sanskrit: 6 },
+    'Class 9': { English: 10, Hindi: 6, Mathematics: 15, Science: 15, 'Social Science': 15, Sanskrit: 6 },
+    'Class 10': { English: 11, Hindi: 6, Mathematics: 14, Science: 16, 'Social Science': 16, Sanskrit: 6 },
+    'Class 11': { 'English Core': 8, Mathematics: 16, Physics: 15, Chemistry: 14, Biology: 14, 'Computer Science': 8, Accountancy: 8, 'Business Studies': 8, Economics: 10, 'Political Science': 8, History: 8, Geography: 8, Sanskrit: 5 },
+    'Class 12': { 'English Core': 8, Mathematics: 13, Physics: 15, Chemistry: 16, Biology: 16, 'Computer Science': 8, Accountancy: 8, 'Business Studies': 8, Economics: 12, 'Political Science': 8, History: 8, Geography: 10, Sanskrit: 5 },
   };
   return map[className]?.[subjectName] || 0;
 }

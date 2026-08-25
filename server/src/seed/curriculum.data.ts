@@ -24,21 +24,87 @@ export interface CurriculumClass {
   subjects: CurriculumSubject[];
 }
 
-const S = (name: string, slug: string, stream?: string, category?: string, chapters: [string, number?][]): CurriculumSubject => ({
-  name,
-  slug,
-  stream,
-  category,
-  chapters: chapters.map(([title, no], i) => ({ title, no: no ?? i + 1 })),
-});
+const S = (
+  name: string,
+  slug: string,
+  ...args: any[]
+): CurriculumSubject => {
+  let stream: string | undefined;
+  let category: string | undefined;
+  let rawChapters: [string, number?][] = [];
+
+  if (args.length === 1 && Array.isArray(args[0]) && (args[0].length === 0 || Array.isArray(args[0][0]))) {
+    // S(name, slug, [[title, no], ...])
+    rawChapters = args[0];
+  } else if (typeof args[0] === "string" && typeof args[1] === "string") {
+    stream = args[0];
+    category = args[1];
+    if (args.length === 3 && Array.isArray(args[2]) && (args[2].length === 0 || Array.isArray(args[2][0]))) {
+      // S(name, slug, stream, category, [[title, no], ...])
+      rawChapters = args[2];
+    } else {
+      // S(name, slug, stream, category, [title1, no1], [title2, no2], ...)
+      rawChapters = args.slice(2);
+    }
+  } else {
+    rawChapters = args;
+  }
+
+  const chapters: CurriculumChapter[] = rawChapters.map((item, i) => {
+    if (Array.isArray(item)) {
+      const [title, no] = item;
+      return { title, no: no ?? i + 1 };
+    }
+    return { title: String(item), no: i + 1 };
+  });
+
+  return {
+    name,
+    slug,
+    stream,
+    category,
+    chapters,
+  };
+};
 
 export const CURRICULUM: CurriculumClass[] = [
+  {
+    name: "LKG",
+    slug: "lkg",
+    description: "Foundational pre-primary stage — age-appropriate early learning for LKG.",
+    subjects: [
+      S("English (Foundational)", "english-foundational-lkg", [
+        ["Alphabet Fun A–M", 1],
+        ["Alphabet Fun N–Z", 2],
+        ["Vowels and Consonants", 3],
+        ["Simple Words", 4],
+        ["Rhymes and Songs", 5],
+      ]),
+      S("Hindi (Foundational)", "hindi-foundational-lkg", [
+        ["स्वर परिचय — अ, आ, इ, ई (Vowels Introduction)", 1],
+        ["व्यंजन परिचय — क, ख, ग (Consonant Introduction)", 2],
+        ["चित्र पहचान (Picture Recognition)", 3],
+        ["छोटे शब्द (Simple Words)", 4],
+        ["कविताएँ और गीत (Rhymes and Songs)", 5],
+        ["बातचीत (Conversation)", 6],
+      ]),
+      S("Mathematics (Foundational)", "mathematics-foundational-lkg", [
+        ["Counting 1 to 5", 1],
+        ["Counting 6 to 10", 2],
+        ["Shapes", 3],
+        ["Colours", 4],
+        ["Comparisons — Big and Small", 5],
+        ["Patterns", 6],
+      ]),
+    ],
+  },
   {
     name: "UKG",
     slug: "ukg",
     description: "Foundational pre-primary stage — age-appropriate early learning.",
     subjects: [
       S("English (Foundational)", "english-foundational", [
+
         ["Alphabet Fun A–Z", 1],
         ["Phonics and Sounds", 2],
         ["Sight Words", 3],

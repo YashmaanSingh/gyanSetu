@@ -68,8 +68,8 @@ export default function StudentDashboard() {
           subtitle="The class you are enrolled in"
           action={
             <button
-              onClick={() => nav("/student/explore-syllabus")}
-              className="inline-flex items-center gap-1 text-sm text-brand-600 font-medium"
+              onClick={() => nav("/student/library")}
+              className="inline-flex items-center gap-1 text-sm text-brand-600 font-medium hover:underline"
             >
               <Plus className="w-4 h-4" /> Explore Full Syllabus
             </button>
@@ -77,8 +77,8 @@ export default function StudentDashboard() {
         >
         </CardHeader>
         {myClass ? (
-          <div className="p-3">
-            <GraduationCap className="w-4 h-4 mr-2" />
+          <div className="p-3 flex items-center">
+            <GraduationCap className="w-4 h-4 mr-2 text-brand-600" />
             <span className="font-semibold text-slate-800">{className}</span>
           </div>
         ) : (
@@ -95,7 +95,7 @@ export default function StudentDashboard() {
           >
           </CardHeader>
           {mySubjects.length === 0 ? (
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-slate-400 p-3">
               No subjects assigned to your class yet.
             </p>
           ) : (
@@ -103,7 +103,7 @@ export default function StudentDashboard() {
               {mySubjects.map((s) => (
                 <button
                   key={s.id}
-                  onClick={() => nav(`/student/subject/${s.id}`)}
+                  onClick={() => nav("/student/library")}
                   className={
                     `rounded-xl border p-3 text-left transition ${
                       s.orderIndex % 2 === 0
@@ -220,7 +220,7 @@ export default function StudentDashboard() {
               </div>
             ))
           )}
-        </CardHeader>
+        </div>
       </Card>
 
       <Card>
