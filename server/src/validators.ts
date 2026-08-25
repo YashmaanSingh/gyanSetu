@@ -347,7 +347,8 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 
   for (const clsName of requiredClasses) {
     const cls = classMap.get(clsName.toLowerCase());
-    const foundSubjects = await getDb().select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
+    // Query subjects for this class directly (no innerJoin)
+    const foundSubjects = await getDb().select().from(subjects).where(eq(subjects.classId, cls!.id)).orderBy(asc(subjects.orderIndex));
 
     const expectedSubjects = getExpectedSubjects(clsName);
     const subjectOk = foundSubjects.length === expectedSubjects;
@@ -375,7 +376,8 @@ export async function validateCurriculum(db: any): Promise<CurriculumValidationR
 // 2. Validate subjects and chapters
   for (const clsName of requiredClasses) {
     const cls = classMap.get(clsName.toLowerCase());
-    const foundSubjects = await getDb().select().from(subjects).innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id)).where(eq(classSubjects.classId, cls!.id)).orderBy(asc(classSubjects.orderIndex));
+    // Query subjects for this class directly (no innerJoin)
+    const foundSubjects = await getDb().select().from(subjects).where(eq(subjects.classId, cls!.id)).orderBy(asc(subjects.orderIndex));
 
     for (const sub of foundSubjects) {
       const foundChapters = await getDb().select().from(chapters).where(and(eq(chapters.classId, cls!.id), eq(chapters.subjectId, sub.id))).orderBy(asc(chapters.chapterNo));
